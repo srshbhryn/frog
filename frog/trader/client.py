@@ -62,11 +62,13 @@ class Nobitex:
     def _request(self, type, method, url, data=None):
         response = self.sessions[type].request(
             method=method,
-            url=url,
+            url=self.base_url + url,
             json=data,
         )
         response.raise_for_status()
         response = response.json()
+        logging.debug(data)
+        logging.debug(response)
         if not response['status'] == 'ok':
             raise NobitexClientError(response)
         return response

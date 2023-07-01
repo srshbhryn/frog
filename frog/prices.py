@@ -16,7 +16,7 @@ def get_prices(symbol: str) -> list[float]:
     )
     if not int(ticker) in timestamp_to_open_map:
         time.sleep(5)
-        return get_prices(symbol, ticker)
+        return get_prices(symbol)
     f = 10 if symbol[-3:] == 'rls' else 1
     return [
         f * timestamp_to_open_map[ts]

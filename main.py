@@ -15,23 +15,24 @@ def init():
 
 def main():
     while True:
+        State.ticker = Ticker.current()
         long_asset_prices = get_prices(Config.long_symbol)
         short_asset_prices = get_prices(Config.short_symbol)
         residual = get_residual(long_asset_prices, short_asset_prices)
         logging.info(f'residual is {residual}')
-        if State.position == Position.CLOSE:
-            if residual > Config.alpha_open:
-                Core.open_long(long_asset_prices[-1], short_asset_prices[-1])
-            elif residual < -Config.alpha_open:
-                Core.open_short(long_asset_prices[-1], short_asset_prices[-1])
+        # if State.position == Position.CLOSE:
+        #     if residual > Config.alpha_open:
+        #         Core.open_long(long_asset_prices[-1], short_asset_prices[-1])
+        #     elif residual < -Config.alpha_open:
+        #         Core.open_short(long_asset_prices[-1], short_asset_prices[-1])
 
-        elif State.position == Position.LONG:
-            if residual < Config.alpha_close:
-                Core.close_long(long_asset_prices[-1], short_asset_prices[-1])
+        # elif State.position == Position.LONG:
+        #     if residual < Config.alpha_close:
+        #         Core.close_long(long_asset_prices[-1], short_asset_prices[-1])
 
-        elif State.position == Position.SHORT:
-            if residual > -Config.alpha_close:
-                Core.close_short(long_asset_prices[-1], short_asset_prices[-1])
+        # elif State.position == Position.SHORT:
+        #     if residual > -Config.alpha_close:
+        #         Core.close_short(long_asset_prices[-1], short_asset_prices[-1])
 
         while Ticker.current() == State.ticker:
             time.sleep(1)
