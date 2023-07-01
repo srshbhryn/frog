@@ -40,7 +40,7 @@ class Trader:
             method=self.client.METHOD.post,
             url='/market/orders/add',
             data={
-                'type': 'buy',
+                'type': 'sell',
                 'srcCurrency': base,
                 'dstCurrency': quote,
                 'amount': self._get_spot_balance(base),
