@@ -1,6 +1,6 @@
 
 class Trader:
-    def __init__(self) -> None:
+    def __init__(self, token) -> None:
         pass
 
     def open_long(self, symbol, amount, price) -> None:
@@ -17,4 +17,3 @@ class Trader:
 
     def available_quote(self) -> float:
         pass
-
