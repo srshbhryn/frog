@@ -15,4 +15,5 @@ logging.basicConfig(
 
 
 t = Trader(os.getenv('NOBITEX_AUTH_TOKEN'))
-t.open_long('btc-rls', '1111', '10000')
+t.open_short('btc-rls', '.00001', '152352452300')
+
