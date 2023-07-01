@@ -63,7 +63,6 @@ class Trader:
             },
         )
         assert response['status'] == 'ok'
-        self.symbol_to_short_amount[symbol] = response['order']['amount']
 
     def _get_position_id_and_liability(self, symbol):
         base, quote = symbol.split('-')
