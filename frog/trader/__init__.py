@@ -22,7 +22,16 @@ class Trader:
             },
         )
         assert response['status'] == 'ok'
-        self.symbol_to_long_amount[symbol] = response['order']['amount']
+
+    def _get_spot_balance(self, asset):
+        response = self.client._request(
+            type=self.client.TYPE.private,
+            method=self.client.METHOD.post,
+            url='/users/wallets/balance',
+            data={'currency': asset},
+        )
+        assert response['status'] == 'ok'
+        return response['balance']
 
     def close_all_long(self, symbol,  price) -> None:
         base, quote = symbol.split('-')
@@ -34,7 +43,7 @@ class Trader:
                 'type': 'buy',
                 'srcCurrency': base,
                 'dstCurrency': quote,
-                'amount': self.symbol_to_long_amount[symbol],
+                'amount': self._get_spot_balance(base),
                 'price': price,
             },
         )
