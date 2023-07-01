@@ -21,21 +21,21 @@ def main():
         residual = get_residual(long_asset_prices, short_asset_prices)
         logging.info(f'residual is {residual}')
         if State.position == Position.CLOSE:
-            if residual > Config.alpha_open:
+            if residual < -Config.alpha_open:
                 Core.open_long(long_asset_prices[-1], short_asset_prices[-1])
                 State.position = Position.LONG
-            elif residual < -Config.alpha_open:
+            elif residual > Config.alpha_open:
                 Core.open_short(long_asset_prices[-1], short_asset_prices[-1])
                 State.position = Position.SHORT
 
-        elif State.position == Position.LONG:
+        elif State.position == Position.SHORT:
             if residual < Config.alpha_close:
-                Core.close_long(long_asset_prices[-1], short_asset_prices[-1])
+                Core.close_short(long_asset_prices[-1], short_asset_prices[-1])
                 State.position = Position.CLOSE
 
-        elif State.position == Position.SHORT:
+        elif State.position == Position.LONG:
             if residual > -Config.alpha_close:
-                Core.close_short(long_asset_prices[-1], short_asset_prices[-1])
+                Core.close_long(long_asset_prices[-1], short_asset_prices[-1])
                 State.position = Position.CLOSE
 
         while Ticker.current() == State.ticker:
