@@ -5,9 +5,6 @@ from .client import Nobitex
 class Trader:
     def __init__(self, token) -> None:
         self.token = token
-        self.symbol_to_long_amount = {}
-        self.symbol_to_short_amount = {}
-        self.symbol_to_short_id = {}
         self.client = Nobitex(token, 'frog0.1')
 
     def open_long(self, symbol, amount, price) -> None:
@@ -58,15 +55,26 @@ class Trader:
         )
         assert response['status'] == 'ok'
         self.symbol_to_short_amount[symbol] = response['order']['amount']
-        self.symbol_to_short_id[symbol] = response['order']['id']
+
+    def _get_position_id_and_liability(self, symbol):
+        base, quote = symbol.split('-')
+        response = self.client._request(
+            type=self.client.TYPE.private,
+            method=self.client.METHOD.get,
+            url=f'/positions/list?srcCurrency={base}&dstCurrency={quote}&status=active',
+        )
+        print(response)
+        assert response['status'] == 'ok'
+        return response['positions'][0]['id'], response['positions'][0]['liability']
 
     def close_all_short(self, symbol, price) -> None:
+        position_id, liability = self._get_position_id_and_liability(symbol)
         response = self.client._request(
             type=self.client.TYPE.private,
             method=self.client.METHOD.post,
-            url=f'/positions/{self.symbol_to_short_id[symbol]}/close',
+            url=f'/positions/{position_id}/close',
             data={
-                'amount': self.symbol_to_short_amount[symbol],
+                'amount': liability,
                 'price': price,
             },
         )

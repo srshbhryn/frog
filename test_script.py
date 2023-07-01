@@ -1,5 +1,5 @@
 import logging
-
+import time
 import os
 
 
@@ -15,5 +15,8 @@ logging.basicConfig(
 
 
 t = Trader(os.getenv('NOBITEX_AUTH_TOKEN'))
-t.open_short('btc-rls', '.00001', '152352452300')
+# t._get_position_id_and_liability('btc-rls')
+# t.open_short('btc-rls', '.0001', '15235245000')
+time.sleep(3)
+t.close_all_short('btc-rls',  '16236245000')
 
