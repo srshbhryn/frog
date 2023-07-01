@@ -10,7 +10,7 @@ def get_prices(symbol: str) -> list[float]:
     ticker = int(State.ticker)
     timestamp_to_open_map = _fetch_prices(
         symbol=get_nobitex_candle_symbol(symbol),
-        from_timestamp=int(ticker) - 60 * Config.residual_length + 5,
+        from_timestamp=int(ticker) - 60 * (Config.residual_length + 5),
         to_timestamp=int(ticker) + 60,
         resolution='1',
     )
@@ -52,7 +52,7 @@ def _fetch_prices(
             data['l'],
             data['v'],
         ):
-            timestamp_to_open_map[int(t)] = float(t)
+            timestamp_to_open_map[int(t)] = float(o)
         last_fetched_timestamp = data['t'][0]
         page += 1
 
