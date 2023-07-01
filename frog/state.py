@@ -1,7 +1,22 @@
 import os
+import enum
+import time
 
-from .types import Position, Ticker
 from .trader import Trader
+
+
+class Position(enum.Enum):
+    SHORT = -1
+    CLOSE = 0
+    LONG = 1
+
+
+class Ticker(int):
+
+    @classmethod
+    def current(cls) -> 'Ticker':
+        return Ticker(int(time.time() / 60) * 60)
+
 
 class State:
     position: Position

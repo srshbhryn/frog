@@ -1,7 +1,7 @@
 
-from frog.types import Config, State
-from frog.config import  Config
-from frog.state import  State
+from .config import  Config
+from .state import  State
+
 
 class Core:
 

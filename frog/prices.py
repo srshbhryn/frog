@@ -1,13 +1,15 @@
 import requests
 import time
 
-from frog.types import Ticker
-from frog.config import Config
-from frog.utils import get_nobitex_candle_symbol
+from .state import State
+from .config import Config
+from .utils import get_nobitex_candle_symbol
 
-def get_prices(symbol: str, ticker: Ticker) -> list[float]:
+
+def get_prices(symbol: str) -> list[float]:
+    ticker = int(State.ticker)
     timestamp_to_open_map = _fetch_prices(
-        symbol=get_nobitex_candle_symbol(),
+        symbol=get_nobitex_candle_symbol(symbol),
         from_timestamp=int(ticker) - 60 * Config.residual_length + 5,
         to_timestamp=int(ticker) + 60,
         resolution='1',
