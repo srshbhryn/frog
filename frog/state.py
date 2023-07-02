@@ -2,7 +2,7 @@ import os
 import enum
 import time
 
-from .trader import Trader
+from .trader import Trader, MarketTrader
 
 
 class Position(enum.Enum):
@@ -27,4 +27,4 @@ class State:
 def init():
     State.position = Position.CLOSE
     State.ticker = Ticker.current()
-    State.trader = Trader(os.getenv('NOBITEX_AUTH_TOKEN'))
+    State.trader = MarketTrader(os.getenv('NOBITEX_AUTH_TOKEN'))
