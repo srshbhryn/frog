@@ -52,7 +52,7 @@ class Trader:
             type=self.client.TYPE.private,
             method=self.client.METHOD.post,
             url='/market/orders/add',
-            data=self._get_close_all_long_data(),
+            data=self._get_close_all_long_data(symbol, price),
         )
         assert response['status'] == 'ok'
 

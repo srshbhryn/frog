@@ -45,7 +45,7 @@ def main():
 if __name__ == '__main__':
     logging.basicConfig(
         format='%(module)s %(filename)s %(lineno)d\t%(asctime)s %(levelname)-8s %(message)s',
-        level=logging.INFO,
+        level=logging.DEBUG,
         datefmt='%Y-%m-%d %H:%M:%S'
     )
     init()
