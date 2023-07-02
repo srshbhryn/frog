@@ -23,7 +23,7 @@ def handle_exception(func):
                 logger.error(e)
                 if e.response is not None:
                     logger.error(e.response.text)
-            return response
+            continue
     return wrapper
 
 
