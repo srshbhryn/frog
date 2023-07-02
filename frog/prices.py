@@ -5,6 +5,7 @@ from .state import State
 from .config import Config
 from .utils import get_nobitex_candle_symbol, retry_on_failure
 
+
 @retry_on_failure
 def get_prices(symbol: str) -> list[float]:
     ticker = int(State.ticker)

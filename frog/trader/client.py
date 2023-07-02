@@ -1,5 +1,5 @@
 from typing import Dict
-
+import time
 import requests
 import logging
 
@@ -18,12 +18,12 @@ def handle_exception(func):
         self: Nobitex = args[0]
         while True:
             try:
-                response = func(*args, **kwargs)
+                return func(*args, **kwargs)
             except requests.RequestException as e:
                 logger.error(e)
                 if e.response is not None:
                     logger.error(e.response.text)
-            continue
+                time.sleep(2)
     return wrapper
 
 
