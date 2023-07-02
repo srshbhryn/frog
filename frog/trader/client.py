@@ -67,8 +67,6 @@ class Nobitex:
         )
         response.raise_for_status()
         response = response.json()
-        logging.debug(data)
-        logging.debug(response)
         if not response['status'] == 'ok':
             raise NobitexClientError(response)
         return response
