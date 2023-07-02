@@ -11,11 +11,11 @@ def get_prices(symbol: str) -> list[float]:
     timestamp_to_open_map = _fetch_prices(
         symbol=get_nobitex_candle_symbol(symbol),
         from_timestamp=int(ticker) - 60 * (Config.residual_length + 5),
-        to_timestamp=int(ticker) + 60,
+        to_timestamp=int(ticker),
         resolution='1',
     )
     if not int(ticker) in timestamp_to_open_map:
-        time.sleep(5)
+        time.sleep(1)
         return get_prices(symbol)
     f = 10 if symbol[-3:] == 'rls' else 1
     return [
@@ -52,7 +52,7 @@ def _fetch_prices(
             data['l'],
             data['v'],
         ):
-            timestamp_to_open_map[int(t)] = float(o)
+            timestamp_to_open_map[int(t) + 60] = float(c)
         last_fetched_timestamp = data['t'][0]
         page += 1
 
