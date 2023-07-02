@@ -8,7 +8,7 @@ class Trader:
         self.token = token
         self.client = Nobitex(token, 'frog0.1')
 
-    def _get_open_long_data(symbol, amount, price):
+    def _get_open_long_data(self, symbol, amount, price):
         base, quote = symbol.split('-')
         return {
                 'type': 'buy',
