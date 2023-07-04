@@ -1,3 +1,4 @@
+import time
 from multiprocessing import Queue
 from decimal import Decimal
 
@@ -30,3 +31,5 @@ def main(queue: Queue):
             long_ask_price=long_ask_price,
             long_bid_price=long_bid_price,
         ))
+        time.sleep(.8)
+
