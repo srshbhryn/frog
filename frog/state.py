@@ -1,6 +1,7 @@
 import os
 import enum
 import time
+import decimal
 
 from .trader import Trader, MarketTrader
 
@@ -19,6 +20,7 @@ class Ticker(int):
 
 
 class State:
+    order_value: decimal.Decimal
     position: Position
     ticker: Ticker
     trader: Trader

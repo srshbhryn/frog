@@ -25,6 +25,7 @@ def get_interpolation(long_prices, short_prices) -> Interpolation:
         short_price_zero=short_prices[0],
     )
 
+
 def main(store: Store):
     ticker = Ticker.current()
     while True:

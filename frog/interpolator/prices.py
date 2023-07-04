@@ -1,9 +1,9 @@
 import requests
 import time
 
-from .state import State
-from .config import Config
-from .utils import get_nobitex_candle_symbol, retry_on_failure
+from ..state import State
+from ..config import Config
+from ..utils import get_nobitex_candle_symbol, retry_on_failure
 
 
 @retry_on_failure

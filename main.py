@@ -16,8 +16,6 @@ def init():
 def main():
     while True:
         State.ticker = Ticker.current()
-        long_asset_prices = get_prices(Config.long_symbol)
-        short_asset_prices = get_prices(Config.short_symbol)
         residual = get_residual(long_asset_prices, short_asset_prices)
         logging.info(f'residual is {residual}')
         if State.position == Position.CLOSE:
