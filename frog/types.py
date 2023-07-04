@@ -1,11 +1,12 @@
 import dataclasses
 from decimal import Decimal
 
+from sklearn.linear_model import LinearRegression
+
 
 @dataclasses.dataclass(slots=True)
 class Interpolation:
-    alpha: float
-    beta: float
+    reg: LinearRegression
     long_price_zero: float
     short_price_zero: float
 

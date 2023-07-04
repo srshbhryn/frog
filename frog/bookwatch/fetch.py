@@ -1,10 +1,10 @@
 import requests
-import decimal
 
 from ..config import Config
-from ..utils import get_nobitex_candle_symbol
+from ..utils import get_nobitex_candle_symbol, retry_on_failure
 
 
+@retry_on_failure
 def fetch_books():
     data = requests.get(
         url='https://api.nobitex.ir/v2/orderbook/all',

@@ -1,7 +1,5 @@
 import logging
 import time
-from multiprocessing import Lock
-from copy import deepcopy
 
 
 def get_nobitex_candle_symbol(symbol):
@@ -21,20 +19,3 @@ def retry_on_failure(func):
                 time.sleep(1)
 
     return wrapper
-
-
-class Store:
-    def __init__(self) -> None:
-        self.lock = Lock()
-        self.value = None
-
-    def get(self):
-        self.lock.acquire()
-        value = deepcopy(self.value)
-        self.lock.release()
-        return value
-
-    def set(self, value):
-        self.lock.acquire()
-        self.value = deepcopy(value)
-        self.lock.release()

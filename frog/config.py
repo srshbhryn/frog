@@ -1,3 +1,4 @@
+import decimal
 
 
 class Config:
@@ -11,11 +12,11 @@ class Config:
 
     @classmethod
     def long_order_value(cls):
-        return cls.trading_quote / (1 + cls.beta)
+        return decimal.Decimal(cls.trading_quote / (1 + cls.beta))
 
     @classmethod
     def short_order_value(cls):
-        return cls.trading_quote * cls.beta / (1 + cls.beta)
+        return decimal.Decimal(cls.trading_quote * cls.beta / (1 + cls.beta))
 
 
 def load():
