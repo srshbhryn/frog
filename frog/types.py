@@ -7,8 +7,8 @@ from sklearn.linear_model import LinearRegression
 @dataclasses.dataclass(slots=True)
 class Interpolation:
     reg: LinearRegression
-    long_price_zero: float
-    short_price_zero: float
+    long_price_normalizer: float
+    short_price_normalizer: float
 
 
 @dataclasses.dataclass(slots=True)

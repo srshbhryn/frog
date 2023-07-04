@@ -13,7 +13,7 @@ from .core import Core
 
 
 def get_residual(long_price, short_price, interpolation: Interpolation):
-    return float(long_price) / interpolation.long_price_zero - interpolation.reg.predict([[1, float(short_price) / interpolation.short_price_zero]])[0]
+    return float(long_price) / interpolation.long_price_normalizer - interpolation.reg.predict([[1, float(short_price) / interpolation.short_price_normalizer]])[0]
 
 
 def main(order_book_queue: Queue, interpolation_queue: Queue):

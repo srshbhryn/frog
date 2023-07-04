@@ -13,6 +13,8 @@ from .prices import get_prices
 
 
 def get_interpolation(long_prices, short_prices) -> Interpolation:
+    long_price_normalizer = sum(long_prices) / len(long_prices)
+    short_price_normalizer = sum(short_prices) / len(short_prices)
     long_returns = [p / long_prices[0] for p in long_prices]
     short_returns = [p / short_prices[0] for p in short_prices]
     reg = LinearRegression().fit(
@@ -21,8 +23,8 @@ def get_interpolation(long_prices, short_prices) -> Interpolation:
     )
     return Interpolation(
         reg=reg,
-        long_price_zero=long_prices[0],
-        short_price_zero=short_prices[0],
+        long_price_normalizer=long_price_normalizer,
+        short_price_normalizer=short_price_normalizer,
     )
 
 
