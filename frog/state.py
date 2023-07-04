@@ -20,7 +20,6 @@ class Ticker(int):
 
 
 class State:
-    order_value: decimal.Decimal
     position: Position
     ticker: Ticker
     trader: Trader

@@ -7,7 +7,7 @@ from ..utils import get_nobitex_candle_symbol
 
 def fetch_books():
     data = requests.get(
-        url='https://api.nobitex.ir/market/udf/history',
+        url='https://api.nobitex.ir/v2/orderbook/all',
         headers={
             'REFERER': 'https://nobitex.ir/',
         },).json()

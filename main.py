@@ -1,44 +1,25 @@
 import time
 import logging
-
-from frog.state import Position, Ticker, State, init as init_state
-from frog.config import Config, load as load_config
-from frog.prices import get_prices
-from frog.residual import get_residual
-from frog.core import Core
+from multiprocessing import Queue, Process
 
 
-def init():
-    init_state()
-    load_config()
+from frog import bookwatch, interpolator, core
+from frog.utils import Store
+from frog.state import init
 
 
 def main():
-    while True:
-        State.ticker = Ticker.current()
-        residual = get_residual(long_asset_prices, short_asset_prices)
-        logging.info(f'residual is {residual}')
-        if State.position == Position.CLOSE:
-            if residual < -Config.alpha_open:
-                Core.open_long(long_asset_prices[-1], short_asset_prices[-1])
-                State.position = Position.LONG
-            elif residual > Config.alpha_open:
-                Core.open_short(long_asset_prices[-1], short_asset_prices[-1])
-                State.position = Position.SHORT
-
-        elif State.position == Position.SHORT:
-            if residual < Config.alpha_close:
-                Core.close_short(long_asset_prices[-1], short_asset_prices[-1])
-                State.position = Position.CLOSE
-
-        elif State.position == Position.LONG:
-            if residual > -Config.alpha_close:
-                Core.close_long(long_asset_prices[-1], short_asset_prices[-1])
-                State.position = Position.CLOSE
-
-        while Ticker.current() == State.ticker:
-            time.sleep(1)
-
+    order_book_queue = Queue()
+    interpolation_store = Store()
+    book_watch_process = Process(target=bookwatch.main, args=(order_book_queue,))
+    interpolator_process = Process(target=interpolator.main, args=(interpolation_store,))
+    book_watch_process.daemon = True
+    book_watch_process.start()
+    interpolator_process.daemon = True
+    interpolator_process.start()
+    core.main(
+        order_book_queue, interpolation_store
+    )
 
 if __name__ == '__main__':
     logging.basicConfig(
