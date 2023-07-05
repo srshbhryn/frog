@@ -2,12 +2,12 @@ import decimal
 
 
 class Config:
-    alpha_open: float = .004
-    alpha_close: float = .001
+    alpha_open: float = .002
+    alpha_close: float = -.001
     long_symbol: str = 'btc-rls'
     short_symbol: str = 'eth-rls'
     beta: float = 1
-    trading_quote: float = 500_000_0
+    trading_quote: float = 800_000_0
     residual_length = 180
 
     @classmethod
