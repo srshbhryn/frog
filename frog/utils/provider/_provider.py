@@ -17,9 +17,4 @@ class Provider:
         pass
 
     def run(self, sleep_time):
-        while True:
-            try:
-                self.provide()
-            except Exception as e:
-                logging.error(f'Failed providing in {self.__class__.__name__}: {e}')
-            time.sleep(sleep_time)
+        pass

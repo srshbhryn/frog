@@ -1,5 +1,7 @@
 import decimal
 
+from frog.types import Pair
+
 
 class Config:
     alpha_open: float = .002
@@ -21,3 +23,6 @@ class Config:
 
 def load():
     pass
+
+
+ALL_PAIRS: list[Pair]
