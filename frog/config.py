@@ -1,6 +1,6 @@
 import decimal
 
-from frog.types import Pair
+from frog.types import Pair, Asset
 
 
 class Config:
@@ -11,6 +11,7 @@ class Config:
     beta: float = 1
     trading_quote: float = 800_000_0
     residual_length = 180
+    orderbook_port = 5556
 
     @classmethod
     def long_order_value(cls):
@@ -25,4 +26,9 @@ def load():
     pass
 
 
-ALL_PAIRS: list[Pair]
+ALL_PAIRS: list[Pair] = [
+    Pair(Asset.BTC, Asset.RLS),
+    Pair(Asset.BTC, Asset.USDT),
+    Pair(Asset.ETH, Asset.RLS),
+    Pair(Asset.ETH, Asset.USDT),
+]

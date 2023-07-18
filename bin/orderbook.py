@@ -1,0 +1,30 @@
+import logging
+import time
+import json
+
+import zmq
+
+from frog.bookwatch import BookWatch
+from frog.config import Config
+
+
+def main():
+    context = zmq.Context()
+    socket = context.socket(zmq.PUB)
+    socket.bind(f"tcp://*:{Config.orderbook_port}")
+    book_watch = BookWatch()
+    while True:
+        time.sleep(1)
+        try:
+            book_watch.provide()
+            for (pair, side), book in book_watch.book.items():
+                socket.send_multipart([
+                    f'{pair}_{side}'.encode(),
+                    json.dumps(book).encode(),
+                ])
+        except Exception as e:
+            logging.error(f'failed provide {book_watch.__class__.__name__}: {e}.', exc_info=True)
+
+
+if __name__ == '__main__':
+    main()

@@ -1,4 +1,3 @@
-import typing
 import enum
 import decimal
 import dataclasses
@@ -31,13 +30,25 @@ class Asset(enum.Enum):
     DOGE = 'doge'
     SHIB = 'shib'
 
+    def  __str__(self) -> str:
+        return self.value
 
-Pair = tuple[Asset, Asset]
+
+@dataclasses.dataclass(slots=True)
+class Pair:
+    base: Asset
+    quote: Asset
+
+    def __str__(self) -> str:
+        return str(self.base) + str(self.quote)
 
 
 class Side(enum.Enum):
     SHORT = False
     LONG = True
+
+    def __str__(self) -> str:
+        return self.name
 
 
 class Amount(decimal.Decimal):
