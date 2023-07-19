@@ -10,6 +10,7 @@ from tornado import ioloop
 
 from frog.config import ALL_PAIRS
 from frog.bookwatch._helpers import translate_asset_name
+from frog.config import Config
 
 
 @dataclasses.dataclass(slots=True)
@@ -80,7 +81,7 @@ class NobitexTradeCollector:
         }
         ctx = zmq.asyncio.Context()
         self.zmq_sock = ctx.socket(zmq.PUB)
-        self.zmq_sock.bind('tcp://*:8728')
+        self.zmq_sock.bind(f'tcp://*:{Config.tradecollector_port}')
         self.store = TradeStore()
 
     async def run(self):

@@ -12,6 +12,7 @@ class Config:
     trading_quote: float = 800_000_0
     residual_length = 180
     orderbook_port = 5556
+    tradecollector_port = 5732
 
     @classmethod
     def long_order_value(cls):
