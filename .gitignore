@@ -2,4 +2,4 @@ venv
 data
 *.pyc
 .env
-
+*.sqlite3
