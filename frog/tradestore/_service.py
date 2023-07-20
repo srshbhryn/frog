@@ -3,10 +3,9 @@ from datetime import datetime, timedelta
 
 import zmq
 
-
 from django.db import models
 
-from frog.config import Config
+from frog import config
 
 from ._django_setup import setup
 
@@ -32,7 +31,7 @@ class PriceService:
 def service_main():
     contex = zmq.Context()
     socket = contex.socket(zmq.REP)
-    socket.bind(f'tcp://*:{Config.priceservice_port}')
+    socket.bind(config.PRICESERVICE_URI)
     price_service = PriceService()
     while True:
         request = socket.recv_multipart()

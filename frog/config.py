@@ -5,15 +5,23 @@ import pathlib
 from frog.types import Pair, Asset
 
 
-class Config:
-    orderbook_port = os.getenv('ORDERBOOK_PORT')
-    tradecollector_port = os.getenv('TRADECOLLECTOR_PORT')
-    priceservice_port = os.getenv('PRICESERVICE_PORT')
+IS_PROD = os.getenv('ENV') == 'PROD'
+
+ORDERBOOK_URI = 'tcp://127.0.0.1:5212'
+TRADECOLLECTOR_URI = 'tcp://127.0.0.1:5213'
+PRICESERVICE_URI = 'tcp://127.0.0.1:5214'
+
+DATA_DIR = pathlib.Path(__file__).parent.parent.joinpath('data/')
+LOGS_DIR = pathlib.Path(__file__).parent.parent.joinpath('logs/')
 
 
-ROOT_DIR = pathlib.Path(__file__).parent.parent
-DATA_DIR = ROOT_DIR.joinpath('data/')
-LOGS_DIR = ROOT_DIR.joinpath('logs/')
+if IS_PROD:
+    ORDERBOOK_URI = 'tcp://orderbook:1212'
+    TRADECOLLECTOR_URI = 'tcp://tradecollector:1212'
+    PRICESERVICE_URI = 'tcp://tradestore:1212'
+    DATA_DIR = '/data/'
+    LOGS_DIR = '/logs/'
+
 
 
 ALL_PAIRS: list[Pair] = [

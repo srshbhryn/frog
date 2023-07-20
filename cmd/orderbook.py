@@ -5,13 +5,13 @@ import json
 import zmq
 
 from frog.bookwatch import BookWatch
-from frog.config import Config
+from frog import config
 
 
 def main():
     context = zmq.Context()
     socket = context.socket(zmq.PUB)
-    socket.bind(f"tcp://*:{Config.orderbook_port}")
+    socket.bind(config.ORDERBOOK_URI)
     book_watch = BookWatch()
     while True:
         time.sleep(1)

@@ -3,7 +3,7 @@ from datetime import datetime
 
 import zmq
 
-from frog.config import Config
+from frog import config
 from ._django_setup import setup
 
 
@@ -18,7 +18,7 @@ def sotre_main():
     context = zmq.Context()
     socket = context.socket(zmq.SUB)
     socket.subscribe("")
-    socket.connect(f'tcp://127.0.0.1:{Config.tradecollector_port}')
+    socket.connect(config.TRADECOLLECTOR_URI)
     while True:
         data = socket.recv_multipart()
         store_trade(json.loads(data[1]))
