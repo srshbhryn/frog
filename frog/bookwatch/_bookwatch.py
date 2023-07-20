@@ -3,12 +3,12 @@ import requests
 
 from frog.types import Pair, PriceAmountPair, Side, Asset
 from frog import config
-from frog.utils.provider import Provider
+
 
 from ._helpers import translate_asset_name
 
 
-class BookWatch(Provider):
+class BookWatch:
     def __init__(self) -> None:
         self.book: dict[tuple(Pair, Side), list[PriceAmountPair]] = {}
 
