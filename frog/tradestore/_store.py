@@ -4,7 +4,7 @@ from datetime import datetime
 import zmq
 
 from frog import config
-from ._django_setup import setup
+from ._django_setup import setup, migrate
 
 
 def store_trade(trade):
@@ -15,6 +15,7 @@ def store_trade(trade):
 
 def sotre_main():
     setup()
+    migrate()
     context = zmq.Context()
     socket = context.socket(zmq.SUB)
     socket.subscribe("")
