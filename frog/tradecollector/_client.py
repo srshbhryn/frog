@@ -81,7 +81,7 @@ class NobitexTradeCollector:
         }
         ctx = zmq.asyncio.Context()
         self.zmq_sock = ctx.socket(zmq.PUB)
-        self.zmq_sock.bind(config.TRADECOLLECTOR_URI)
+        self.zmq_sock.bind(config.TRADECOLLECTOR_BIND_URI)
         self.store = TradeStore()
 
     async def run(self):

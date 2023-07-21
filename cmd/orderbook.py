@@ -11,7 +11,7 @@ from frog import config
 def main():
     context = zmq.Context()
     socket = context.socket(zmq.PUB)
-    socket.bind(config.ORDERBOOK_URI)
+    socket.bind(config.ORDERBOOK_BIND_URI)
     book_watch = BookWatch()
     while True:
         time.sleep(1)
@@ -27,4 +27,9 @@ def main():
 
 
 if __name__ == '__main__':
+    logging.basicConfig(
+        format='%(filename)s %(lineno)d\t%(asctime)s %(levelname)-8s %(message)s',
+        level=config.LOG_LEVEL,
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
     main()

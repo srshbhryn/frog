@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  frog_image:
+    build:
+      context: .
+    image: frog_image
+
+  orderbook:
+    image: frog_image
+    command: "python cmd/orderbook.py"
+    environment:
+      - ENV=PROD
+      - LOG_LEVEL=DEBUG
+    restart: always
+
+  tradecollector:
+    image: frog_image
+    command: "python cmd/tradecollector.py"
+    environment:
+      - ENV=PROD
+      - LOG_LEVEL=DEBUG
+    restart: always
+
+  tradestore:
+    image: frog_image
+    command: "python cmd/tradestore.py"
+    environment:
+      - ENV=PROD
+      - LOG_LEVEL=DEBUG
+    restart: always
+    volumes:
+      - ./data:/data/

@@ -31,7 +31,7 @@ class PriceService:
 def service_main():
     contex = zmq.Context()
     socket = contex.socket(zmq.REP)
-    socket.bind(config.PRICESERVICE_URI)
+    socket.bind(config.PRICESERVICE_BIND_URI)
     price_service = PriceService()
     while True:
         request = socket.recv_multipart()

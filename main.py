@@ -7,6 +7,7 @@ from frog import bookwatch, interpolator, core
 from frog.state import init
 
 
+
 def main():
     order_book_queue = Queue()
     interpolation_queue = Queue(maxsize=3)
