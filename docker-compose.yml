@@ -9,25 +9,22 @@ services:
   orderbook:
     image: frog_image
     command: "python cmd/orderbook.py"
-    environment:
-      - ENV=PROD
-      - LOG_LEVEL=DEBUG
+    env_file:
+      - .env
     restart: always
 
   tradecollector:
     image: frog_image
     command: "python cmd/tradecollector.py"
-    environment:
-      - ENV=PROD
-      - LOG_LEVEL=DEBUG
+    env_file:
+      - .env
     restart: always
 
   tradestore:
     image: frog_image
     command: "python cmd/tradestore.py"
-    environment:
-      - ENV=PROD
-      - LOG_LEVEL=DEBUG
+    env_file:
+      - .env
     restart: always
     volumes:
       - ./data:/data/
