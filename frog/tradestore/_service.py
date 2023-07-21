@@ -17,7 +17,7 @@ class PriceService:
         self.trade_model = Trade
 
     def get(self, pair: str, timestamp: int):
-        timestamp = datetime.fromtimestamp(timestamp / 1000)
+        timestamp = timestamp / 1000
         price = self.trade_model.objects.filter(
             pair=pair,
             time__lt=timestamp + timedelta(seconds=1),

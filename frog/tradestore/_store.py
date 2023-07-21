@@ -9,7 +9,7 @@ from ._django_setup import setup, migrate
 
 def store_trade(trade):
     from .db.models import Trade
-    trade['time'] = datetime.fromtimestamp(trade['time'] / 1000)
+    trade['time'] = trade['time'] / 1000
     Trade.objects.create(**trade)
 
 
