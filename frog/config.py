@@ -41,4 +41,4 @@ ALL_PAIRS: list[Pair] = [
     Pair(Asset.ETH, Asset.USDT),
 ]
 
-LOG_LEVEL = logging._nameToLevel.get(os.getenv('LOG_LEVEL') or 'INFO')
+LOG_LEVEL = logging._nameToLevel.get(os.getenv('LOG_LEVEL') or 'INFO' if IS_PROD else 'DEBUG')
