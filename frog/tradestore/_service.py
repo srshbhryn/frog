@@ -1,5 +1,6 @@
 import logging
 import json
+from decimal import Decimal
 from datetime import datetime, timedelta
 
 import zmq
@@ -66,3 +67,32 @@ def service_main():
             socket.send_multipart([b'0',  json.dumps(prices).encode()])
         else:
             socket.send_multipart([b'1'])
+
+
+class PriceServiceError(Exception):
+    pass
+
+
+class PriceServiceClient:
+    def __init__(self) -> None:
+        self.contex = zmq.Context()
+        self.socket = self.contex.socket(zmq.REQ)
+        self.socket.connect(config.PRICESERVICE_BIND_URI)
+
+    def get(self, pair: str, timestamp: float):
+        self.socket.send_multipart([b'p', str(pair).encode(), str(timestamp).encode()])
+        response = self.socket.recv_multipart()
+        if response[0] == b'4':
+            return None
+        if response[0] == b'0':
+            return Decimal(response[1].decode())
+        raise PriceServiceError(f'bad response: {response}')
+
+    def get_timerange_price(self, pair: str, start_timestamp: float, end_timestamp: float):
+        self.socket.send_multipart([b'pr', str(pair).encode(), str(start_timestamp).encode(), str(end_timestamp).encode()])
+        response = self.socket.recv_multipart()
+        if response[0] == b'4':
+            return {}
+        if response[0] == b'0':
+            return {s: Decimal(p) for s, p in json.loads(response[1].decode()).items()}
+        raise PriceServiceError(f'bad response: {response}')
