@@ -81,7 +81,7 @@ class NobitexTradeCollector:
         }
         ctx = zmq.asyncio.Context()
         self.zmq_sock = ctx.socket(zmq.PUB)
-        self.zmq_sock.bind(config.TRADECOLLECTOR_BIND_URI)
+        self.zmq_sock.connect(config.HIGHWAY_XSUB_URI)
         self.store = TradeStore()
 
     async def run(self):
@@ -98,7 +98,7 @@ class NobitexTradeCollector:
         for trade in json.loads(response.body).get('trades', []):
             trade = self._serialize_trade(trade, pair)
             if not self.store.is_already_sent(trade):
-                await self.zmq_sock.send_multipart([f'{pair}'.lower().encode(), json.dumps(trade.as_dict()).encode()])
+                await self.zmq_sock.send_multipart([f'trade_{pair}'.lower().encode(), json.dumps(trade.as_dict()).encode()])
 
     def _serialize_trade(self, obj, pair):
         price_parts = str(obj['price']).split('.')

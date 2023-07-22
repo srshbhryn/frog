@@ -11,7 +11,7 @@ from frog import config
 def main():
     context = zmq.Context()
     socket = context.socket(zmq.PUB)
-    socket.bind(config.ORDERBOOK_BIND_URI)
+    socket.connect(config.HIGHWAY_XSUB_URI)
     book_watch = BookWatch()
     while True:
         time.sleep(1)
@@ -19,7 +19,7 @@ def main():
             book_watch.provide()
             for (pair, side), book in book_watch.book.items():
                 socket.send_multipart([
-                    f'{pair}_{side}'.encode(),
+                    f'order_{pair}_{side}'.encode(),
                     json.dumps(book).encode(),
                 ])
         except Exception as e:

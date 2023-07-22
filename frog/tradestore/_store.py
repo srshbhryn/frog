@@ -18,8 +18,8 @@ def sotre_main():
     migrate()
     context = zmq.Context()
     socket = context.socket(zmq.SUB)
-    socket.subscribe("")
-    socket.connect(config.TRADECOLLECTOR_URI)
+    socket.subscribe('trade_')
+    socket.connect(config.HIGHWAY_XPUB_URI)
     while True:
         data = socket.recv_multipart()
         store_trade(json.loads(data[1]))

@@ -1,6 +1,13 @@
 version: '3.8'
 
 services:
+  highway:
+    image: frog_image
+    command: "python cmd/highway.py"
+    env_file:
+      - .env
+    restart: always
+
   frog_image:
     build:
       context: .
