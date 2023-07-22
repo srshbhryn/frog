@@ -3,7 +3,6 @@ import time
 import logging
 import decimal
 
-# from ..utils import Store
 from ..types import Interpolation, OrderBook
 from ..state import State, Ticker, Position
 from ..config import Config
