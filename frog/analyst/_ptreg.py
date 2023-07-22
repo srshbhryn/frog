@@ -1,16 +1,13 @@
-import time
 import functools
 
 import numpy as np
 from sklearn.linear_model import LinearRegression
 
-from ..state import State
-from ..utils import get_nobitex_candle_symbol, retry_on_failure
-
 from frog.tradestore import PriceServiceClient
 
 
 _client = PriceServiceClient()
+
 
 functools.lru_cache(maxsize=10 * 2 ** 10)
 def get_linear_regression(long_symbol, short_symbol, start_time, end_time):
@@ -41,6 +38,7 @@ def get_linear_regression(long_symbol, short_symbol, start_time, end_time):
     regression.avg_long_price = avg_long_price
     regression.avg_short_price = avg_short_price
     return regression
+
 
 def get_residual(
     long_symbol,

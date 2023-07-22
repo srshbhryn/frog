@@ -13,8 +13,8 @@ ORDERBOOK_URI = 'tcp://127.0.0.1:5212'
 TRADECOLLECTOR_BIND_URI = 'tcp://127.0.0.1:5213'
 TRADECOLLECTOR_URI = 'tcp://127.0.0.1:5213'
 
-PRICESERVICE_BIND_URI = 'tcp://127.0.0.1:5214'
-PRICESERVICE_URI = 'tcp://127.0.0.1:5214'
+ANALYSISSERVICE_BIND_URI = 'tcp://127.0.0.1:5217'
+ANALYSISSERVICE_URI = 'tcp://127.0.0.1:5217'
 
 
 DATA_DIR = pathlib.Path(__file__).parent.parent.joinpath('data/')
@@ -30,8 +30,11 @@ if IS_PROD:
 
     PRICESERVICE_BIND_URI = 'tcp://*:1212'
     PRICESERVICE_URI = 'tcp://tradestore:1212'
-    DATA_DIR = pathlib.Path('/data/')
 
+    ANALYSISSERVICE_BIND_URI = 'tcp://*:1212'
+    ANALYSISSERVICE_URI = 'tcp://analysis:1212'
+
+    DATA_DIR = pathlib.Path('/data/')
 
 
 ALL_PAIRS: list[Pair] = [
