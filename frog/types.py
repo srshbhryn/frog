@@ -43,7 +43,7 @@ class Pair:
         return str(self.base) + str(self.quote)
 
     def  __hash__(self) -> int:
-        return hash(self.__str__)
+        return hash(self.__str__())
 
 
 class Side(enum.Enum):
