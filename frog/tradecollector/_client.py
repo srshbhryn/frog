@@ -1,16 +1,16 @@
-import logging
 import asyncio
-import json
 import dataclasses
+import json
+import logging
 
 import zmq
 import zmq.asyncio
-from tornado.httpclient import HTTPRequest, AsyncHTTPClient, HTTPResponse
 from tornado import ioloop
+from tornado.httpclient import AsyncHTTPClient, HTTPRequest, HTTPResponse
 
-from frog.config import ALL_PAIRS
-from frog.bookwatch._helpers import translate_asset_name
 from frog import config
+from frog.bookwatch._helpers import translate_asset_name
+from frog.config import ALL_PAIRS
 
 
 @dataclasses.dataclass(slots=True)
@@ -54,7 +54,7 @@ class TradeStore:
         return False
 
     def add_trade(self, timestamp, trade_hash):
-        if not timestamp in self.time_to_sent_trades_hashes_map:
+        if timestamp not in self.time_to_sent_trades_hashes_map:
             self.time_to_sent_trades_hashes_map[timestamp] = set()
         self.time_to_sent_trades_hashes_map[timestamp].add(trade_hash)
         self.post_process(timestamp)
@@ -63,11 +63,7 @@ class TradeStore:
     def post_process(self, timestamp):
         if self.surely_sent_time < timestamp - 1200_1000:
             self.surely_sent_time = timestamp - 1200_1000
-        for ts in [
-            ts
-            for ts in self.time_to_sent_trades_hashes_map.keys()
-            if ts < self.surely_sent_time
-        ]:
+        for ts in [ts for ts in self.time_to_sent_trades_hashes_map if ts < self.surely_sent_time]:
             self.time_to_sent_trades_hashes_map.pop(ts, None)
 
 
@@ -89,16 +85,24 @@ class NobitexTradeCollector:
             try:
                 for pair in ALL_PAIRS:
                     ioloop.IOLoop.current().add_callback(self.fetch_market, pair=pair)
-            except Exception as e:
-                logging.error('Error', exc_info=True)
+            except Exception:
+                logging.exception('Error in nobitex trade collector')
             await asyncio.sleep(3)
 
     async def fetch_market(self, pair):
-        response: HTTPResponse = await self.client.fetch(self.requests[pair], raise_error=False)
+        response: HTTPResponse = await self.client.fetch(
+            self.requests[pair],
+            raise_error=False,
+        )
         for trade in json.loads(response.body).get('trades', []):
-            trade = self._serialize_trade(trade, pair)
-            if not self.store.is_already_sent(trade):
-                await self.zmq_sock.send_multipart([f'trade_{pair}'.lower().encode(), json.dumps(trade.as_dict()).encode()])
+            serialized_trade = self._serialize_trade(trade, pair)
+            if not self.store.is_already_sent(serialized_trade):
+                await self.zmq_sock.send_multipart(
+                    [
+                        f'trade_{pair}'.lower().encode(),
+                        json.dumps(trade.as_dict()).encode(),
+                    ],
+                )
 
     def _serialize_trade(self, obj, pair):
         price_parts = str(obj['price']).split('.')

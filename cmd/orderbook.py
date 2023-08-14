@@ -1,11 +1,11 @@
+import json
 import logging
 import time
-import json
 
 import zmq
 
-from frog.bookwatch import BookWatch
 from frog import config
+from frog.bookwatch import BookWatch
 
 
 def main():
@@ -30,6 +30,6 @@ if __name__ == '__main__':
     logging.basicConfig(
         format='%(filename)s %(lineno)d\t%(asctime)s %(levelname)-8s %(message)s',
         level=config.LOG_LEVEL,
-        datefmt='%Y-%m-%d %H:%M:%S'
+        datefmt='%Y-%m-%d %H:%M:%S',
     )
     main()

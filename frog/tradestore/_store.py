@@ -13,7 +13,7 @@ def store_trade(trade):
     Trade.objects.create(**trade)
 
 
-def sotre_main():
+def store_main():
     setup()
     migrate()
     context = zmq.Context()
