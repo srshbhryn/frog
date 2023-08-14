@@ -4,6 +4,7 @@ from frog.utils.rpc import ZmqRpc
 
 from ._ptreg import get_residual
 
+
 class AnalysisService(ZmqRpc):
     uri = config.ANALYSISSERVICE_URI
     bind_uri = config.ANALYSISSERVICE_BIND_URI

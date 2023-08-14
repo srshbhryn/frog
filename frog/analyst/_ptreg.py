@@ -5,7 +5,6 @@ from sklearn.linear_model import LinearRegression
 
 from frog.tradestore import PriceServiceClient
 
-
 _client = PriceServiceClient()
 
 
@@ -18,7 +17,10 @@ def get_linear_regression(long_symbol, short_symbol, start_time, end_time):
     long_price_timestamps = set(long_prices.keys())
     short_price_timestamps = set(short_prices.keys())
     timestamps_intersection = long_price_timestamps.intersection(short_price_timestamps)
-    if  len(timestamps_intersection) > len(short_price_timestamps) / 2 and len(timestamps_intersection) > len(long_price_timestamps) / 2:
+    if (
+        len(timestamps_intersection) > len(short_price_timestamps) / 2
+        and len(timestamps_intersection) > len(long_price_timestamps) / 2
+    ):
         long_returns = []
         short_returns = []
         timestamps_intersection = list(timestamps_intersection)
@@ -49,6 +51,9 @@ def get_residual(
     current_short_price,
 ):
     regression = get_linear_regression(long_symbol, short_symbol, start_time, end_time)
-    return current_long_price / regression.avg_long_price - regression.predict(
-        [1, current_short_price / regression.avg_short_price]
-    )[0]
+    return (
+        current_long_price / regression.avg_long_price
+        - regression.predict(
+            [1, current_short_price / regression.avg_short_price],
+        )[0]
+    )

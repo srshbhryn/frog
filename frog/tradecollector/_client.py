@@ -113,4 +113,10 @@ class NobitexTradeCollector:
             price_parts[0] = price_parts[0] + (10 - len(price_parts[0])) * '0'
         if len(price_parts[1]) < 10:
             price_parts[1] = (10 - len(price_parts[1])) * '0' + price_parts[1]
-        return Trade(pair, obj['time'], str(obj['volume']), str(obj['price']), is_buyer_maker)
+        return Trade(
+            pair,
+            obj['time'],
+            str(obj['volume']),
+            str(obj['price']),
+            is_buyer_maker,
+        )

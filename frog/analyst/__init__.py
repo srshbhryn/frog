@@ -1,1 +1,1 @@
-from ._server import AnalysisService, AnalysisClient
+from ._server import AnalysisClient, AnalysisService
