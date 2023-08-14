@@ -1,10 +1,10 @@
 import json
-from datetime import datetime
 
 import zmq
 
 from frog import config
-from ._django_setup import setup, migrate
+
+from ._django_setup import migrate, setup
 
 
 def store_trade(trade):

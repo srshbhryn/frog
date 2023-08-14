@@ -1,10 +1,9 @@
-import logging
 import json
+import logging
+from datetime import timedelta
 from decimal import Decimal
-from datetime import datetime, timedelta
 
 import zmq
-
 from django.db import models
 
 from frog import config
@@ -19,32 +18,53 @@ class PriceService:
         self.trade_model = Trade
 
     def get(self, pair: str, timestamp: float):
-        price = self.trade_model.objects.filter(
-            pair=pair,
-            time__lt=timestamp,
-            time__gt=timestamp - timedelta(seconds=1),
-        ).aggregate(price=models.Sum(
-            models.F('amount') * models.F('price')
-        ) / models.Sum(models.F('amount'))).get('price')
-        return price
+        return (
+            self.trade_model.objects.filter(
+                pair=pair,
+                time__lt=timestamp,
+                time__gt=timestamp - timedelta(seconds=1),
+            )
+            .aggregate(
+                price=models.Sum(
+                    models.F('amount') * models.F('price'),
+                )
+                / models.Sum(models.F('amount'))
+            )
+            .get('price')
+        )
 
-    def get_timerange_price(self, pair: str, start_timestamp: float, end_timestamp: float):
-        prices = self.trade_model.objects.filter(
-            pair=pair,
-            time__gt=start_timestamp,
-            time__lt=end_timestamp,
-        ).annotate(
-            second=models.functions.Cast('time', models.IntegerField())
-        ).values('second').annotate(price=models.Sum(
-            models.F('amount') * models.F('price')
-        ) / models.Sum(models.F('amount'))).values_list('second', 'price')
+    def get_timerange_price(
+        self,
+        pair: str,
+        start_timestamp: float,
+        end_timestamp: float,
+    ):
+        prices = (
+            self.trade_model.objects.filter(
+                pair=pair,
+                time__gt=start_timestamp,
+                time__lt=end_timestamp,
+            )
+            .annotate(
+                second=models.functions.Cast('time', models.IntegerField()),
+            )
+            .values('second')
+            .annotate(
+                price=models.Sum(
+                    models.F('amount') * models.F('price'),
+                )
+                / models.Sum(models.F('amount')),
+            )
+            .values_list('second', 'price')
+        )
+
         logging.debug(prices.query)
-        return dict([(s + 1, str(d)) for s, d in prices])
+        return {s + 1: str(d) for s, d in prices}
 
 
 def service_main():
-    contex = zmq.Context()
-    socket = contex.socket(zmq.REP)
+    context = zmq.Context()
+    socket = context.socket(zmq.REP)
     socket.bind(config.PRICESERVICE_BIND_URI)
     price_service = PriceService()
     while True:
@@ -55,16 +75,20 @@ def service_main():
             timestamp = float(request[2].decode())
             price = price_service.get(pair, timestamp)
             if price is None:
-                socket.send_multipart([b'4',])
+                socket.send_multipart([b'4'])
             socket.send_multipart([b'0', str(price).encode()])
         elif subject == 'pr':
             pair = request[1].decode()
             start_timestamp = float(request[2].decode())
             end_timestamp = float(request[3].decode())
-            prices = price_service.get_timerange_price(pair, start_timestamp, end_timestamp)
+            prices = price_service.get_timerange_price(
+                pair,
+                start_timestamp,
+                end_timestamp,
+            )
             if not prices:
-                socket.send_multipart([b'4',])
-            socket.send_multipart([b'0',  json.dumps(prices).encode()])
+                socket.send_multipart([b'4'])
+            socket.send_multipart([b'0', json.dumps(prices).encode()])
         else:
             socket.send_multipart([b'1'])
 
@@ -75,8 +99,8 @@ class PriceServiceError(Exception):
 
 class PriceServiceClient:
     def __init__(self) -> None:
-        self.contex = zmq.Context()
-        self.socket = self.contex.socket(zmq.REQ)
+        self.context = zmq.Context()
+        self.socket = self.context.socket(zmq.REQ)
         self.socket.connect(config.PRICESERVICE_BIND_URI)
 
     def get(self, pair: str, timestamp: float):
@@ -88,8 +112,20 @@ class PriceServiceClient:
             return Decimal(response[1].decode())
         raise PriceServiceError(f'bad response: {response}')
 
-    def get_timerange_price(self, pair: str, start_timestamp: float, end_timestamp: float):
-        self.socket.send_multipart([b'pr', str(pair).encode(), str(start_timestamp).encode(), str(end_timestamp).encode()])
+    def get_timerange_price(
+        self,
+        pair: str,
+        start_timestamp: float,
+        end_timestamp: float,
+    ):
+        self.socket.send_multipart(
+            [
+                b'pr',
+                str(pair).encode(),
+                str(start_timestamp).encode(),
+                str(end_timestamp).encode(),
+            ],
+        )
         response = self.socket.recv_multipart()
         if response[0] == b'4':
             return {}

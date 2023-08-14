@@ -2,8 +2,7 @@ import logging
 import os
 import pathlib
 
-from frog.types import Pair, Asset
-
+from frog.types import Asset, Pair
 
 IS_PROD = os.getenv('ENV') == 'PROD'
 

@@ -1,6 +1,6 @@
-import enum
-import decimal
 import dataclasses
+import decimal
+import enum
 from decimal import Decimal
 
 from sklearn.linear_model import LinearRegression

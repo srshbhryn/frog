@@ -1,5 +1,6 @@
-import pickle
 import logging
+import pickle
+import typing
 
 import zmq
 
@@ -14,7 +15,7 @@ class ZmqRpc:
     is_client = False
     uri = None
     bind_uri = None
-    rpc_methods = {}
+    rpc_methods: typing.ClassVar[callable] = {}
 
     @classmethod
     def register(cls, method):
@@ -52,11 +53,9 @@ class ZmqRpc:
             try:
                 request = socket.recv_multipart()
                 method_name = request[0].decode()
-                if not method_name in self.rpc_methods:
+                if method_name not in self.rpc_methods:
                     raise RpcError(4, f'bad request {request}')
-                socket.send_multipart([b'0'] + [pickle.dumps(self.rpc_methods[method_name](
-                    *(pickle.loads(request[1]))
-                ))])
+                socket.send_multipart([b'0', pickle.dumps(self.rpc_methods[method_name](*pickle.loads(request[1])))])
             except RpcError as e:
                 logging.warning(f'bad request {request}', exc_info=True)
                 socket.send_multipart([str(e.code).encode(), e.msg.encode()])
