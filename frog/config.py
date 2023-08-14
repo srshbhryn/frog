@@ -53,3 +53,9 @@ ALL_PAIRS: list[Pair] = [
 ]
 
 LOG_LEVEL = logging._nameToLevel.get(os.getenv('LOG_LEVEL') or 'INFO' if IS_PROD else 'DEBUG')
+
+
+REGRESSION_LEN = 120
+TRADE_THRESHOLD = .002
+PRICING_FACTOR = 1.0
+WAIT_PERIOD = 240

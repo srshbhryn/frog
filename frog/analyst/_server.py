@@ -8,7 +8,7 @@ class AnalysisService(ZmqRpc):
     uri = config.ANALYSISSERVICE_URI
     bind_uri = config.ANALYSISSERVICE_BIND_URI
 
-    ZmqRpc.register
+    @ZmqRpc.register
     def get_residual(
         self,
         long_symbol,

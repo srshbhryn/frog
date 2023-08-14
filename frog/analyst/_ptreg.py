@@ -9,7 +9,7 @@ from frog.tradestore import PriceServiceClient
 _client = PriceServiceClient()
 
 
-functools.lru_cache(maxsize=10 * 2 ** 10)
+@functools.lru_cache(maxsize=10 * 2 ** 10)
 def get_linear_regression(long_symbol, short_symbol, start_time, end_time):
     long_prices = _client.get_timerange_price(long_symbol, start_time, end_time)
     short_prices = _client.get_timerange_price(short_symbol, start_time, end_time)
