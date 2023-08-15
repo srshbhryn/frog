@@ -35,14 +35,13 @@ StateEventMap = dict[
 
 class Core:
 
-    initial_state = None
+    initial_state: State
 
-    action_success_map: ClassVar[ActionSuccessMap] = {}
+    action_success_map: ActionSuccessMap
 
+    action_failure_map: ActionFailureMap
 
-    action_failure_map: ClassVar[ActionFailureMap] = {}
-
-    state_event_map: ClassVar[StateEventMap] = {}
+    state_event_map: StateEventMap
 
     def wait_for_event(self) -> Event:
         raise NotImplementedError
@@ -51,7 +50,7 @@ class Core:
         raise NotImplementedError
 
     def __init__(self) -> None:
-        self.state: self.State = self.__class__.initial_state
+        self.state: State = self.__class__.initial_state
 
     def run(self):
         while True:
