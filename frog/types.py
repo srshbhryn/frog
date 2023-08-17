@@ -3,12 +3,11 @@ import decimal
 import enum
 from decimal import Decimal
 
-from sklearn.linear_model import LinearRegression
-
 
 @dataclasses.dataclass(slots=True)
 class Interpolation:
-    reg: LinearRegression
+    alpha: Decimal
+    beta: Decimal
     long_price_normalizer: float
     short_price_normalizer: float
 

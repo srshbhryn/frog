@@ -1,15 +1,24 @@
 import logging
+import enum
 import pickle
 import typing
+
 
 import zmq
 
 
 class RpcError(Exception):
-    def __init__(self, code, msg) -> None:
-        self.code = code
-        self.msg = msg
+    class Code(enum.Enum):
+        BAD_REQUEST = '-1'
+        NOT_AVAILABLE = '4'
 
+    def __init__(
+        self,
+        code: typing.Optional[Code] = None,
+        msg: typing.Optional[str] = None,
+    ) -> None:
+        self.code = code or self.Code.BAD_REQUEST
+        self.msg = msg or self.__class__.__name__
 
 class ZmqRpc:
     is_client = False
