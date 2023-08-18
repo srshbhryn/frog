@@ -1,12 +1,3 @@
-import asyncio
-import logging
-
-from frog import config
-from frog.tradecollector import NobitexTradeCollector
-
-
-def main():
-    asyncio.run(NobitexTradeCollector().run())
 
 
 if __name__ == '__main__':

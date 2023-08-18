@@ -1,8 +1,9 @@
+import asyncio
 import logging
 import multiprocessing
 
 from frog import config
-from frog.tradestore import rpc, store_main
+from frog.tradestore import NobitexTradeCollector, rpc, store_main
 
 if __name__ == '__main__':
     logging.basicConfig(
@@ -11,4 +12,5 @@ if __name__ == '__main__':
         datefmt='%Y-%m-%d %H:%M:%S',
     )
     multiprocessing.Process(target=rpc.Service(), args=(), daemon=True).start()
-    store_main()
+    multiprocessing.Process(target=store_main(), args=(), daemon=True).start()
+    asyncio.run(NobitexTradeCollector().run())
