@@ -10,5 +10,5 @@ if __name__ == '__main__':
         level=config.LOG_LEVEL,
         datefmt='%Y-%m-%d %H:%M:%S',
     )
-    multiprocessing.Process(target=rpc.Service(), args=(), daemon=True).start()
+    multiprocessing.Process(target=rpc.Service, args=(), daemon=True).start()
     store_main()

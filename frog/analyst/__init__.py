@@ -1,1 +1,1 @@
-from ._server import AnalysisClient, AnalysisService
+from . import _service as rpc
