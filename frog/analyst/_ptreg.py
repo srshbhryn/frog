@@ -3,7 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 
 import numpy as np
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LinearRegression  # type: ignore
 
 from frog import config
 from frog.tradestore import rpc
@@ -28,23 +28,25 @@ def get_linear_regression(
         start_time,
         end_time,
     )
-    avg_long_price = sum(long_prices.values()) / len(long_prices)
-    avg_short_price = sum(short_prices.values()) / len(short_prices)
+    avg_long_price = sum(long_prices.values(), Price(0)) / len(long_prices)
+    avg_short_price = sum(short_prices.values(), Price(0)) / len(short_prices)
     long_price_timestamps = set(long_prices.keys())
     short_price_timestamps = set(short_prices.keys())
-    timestamps_intersection = long_price_timestamps.intersection(short_price_timestamps)
+    timestamps_intersection_set = long_price_timestamps.intersection(
+        short_price_timestamps,
+    )
     if (
-        len(timestamps_intersection) > len(short_price_timestamps) / 2
-        and len(timestamps_intersection) > len(long_price_timestamps) / 2
+        len(timestamps_intersection_set) > len(short_price_timestamps) / 2
+        and len(timestamps_intersection_set) > len(long_price_timestamps) / 2
     ):
         long_returns = []
         short_returns = []
-        timestamps_intersection = list(timestamps_intersection)
+        timestamps_intersection = list(timestamps_intersection_set)
         timestamps_intersection.sort()
         first_ts = timestamps_intersection[0]
         for ts in timestamps_intersection:
-            long_returns.append(long_prices[ts] / long_prices[first_ts] )
-            short_returns.append(short_prices[ts] / short_prices[first_ts] )
+            long_returns.append(long_prices[ts] / long_prices[first_ts])
+            short_returns.append(short_prices[ts] / short_prices[first_ts])
     else:
         long_returns = []
         short_returns = []

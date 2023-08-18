@@ -37,8 +37,7 @@ class Trade:
 class TradeStore:
     def __init__(self) -> None:
         self.surely_sent_time = -1
-        self.time_to_sent_trades_hashes_map: dict[int, set] = dict()
-        self.time_set = {}
+        self.time_to_sent_trades_hashes_map: dict[int, set[int]] = dict()
 
     def is_already_sent(self, trade: Trade) -> bool:
         if trade.time < self.surely_sent_time:
@@ -46,14 +45,14 @@ class TradeStore:
             return True
         trade_hash = hash(trade)
         timestamp = trade.time
-        ts_set = self.time_to_sent_trades_hashes_map.get(timestamp, {})
+        ts_set = self.time_to_sent_trades_hashes_map.get(timestamp, set())
         if trade_hash in ts_set:
             self.post_process(timestamp)
             return True
         self.add_trade(timestamp, trade_hash)
         return False
 
-    def add_trade(self, timestamp, trade_hash):
+    def add_trade(self, timestamp: int, trade_hash: int):
         if timestamp not in self.time_to_sent_trades_hashes_map:
             self.time_to_sent_trades_hashes_map[timestamp] = set()
         self.time_to_sent_trades_hashes_map[timestamp].add(trade_hash)
@@ -90,7 +89,7 @@ class NobitexTradeCollector:
             await asyncio.sleep(3)
 
     async def fetch_market(self, pair):
-        response: HTTPResponse = await self.client.fetch(
+        response = await self.client.fetch(
             self.requests[pair],
             raise_error=False,
         )

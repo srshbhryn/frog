@@ -1,15 +1,8 @@
+from _decimal import _Decimal, Decimal
 import dataclasses
 import decimal
 import enum
 from decimal import Decimal
-
-
-@dataclasses.dataclass(slots=True)
-class Interpolation:
-    alpha: Decimal
-    beta: Decimal
-    long_price_normalizer: float
-    short_price_normalizer: float
 
 
 @dataclasses.dataclass(slots=True)
@@ -58,8 +51,11 @@ class Amount(decimal.Decimal):
 
 
 class Price(decimal.Decimal):
-    pass
+    def __add__(self, __value: _Decimal) -> 'Price':
+        return Price(super().__add__(__value))
 
+    def __truediv__(self, __value: _Decimal) -> 'Price':
+        return Price(super().__sub__(__value))
 
 class Value(decimal.Decimal):
     pass
@@ -69,3 +65,11 @@ class Value(decimal.Decimal):
 class PriceAmountPair:
     price: Price
     amount: Amount
+
+
+@dataclasses.dataclass(slots=True)
+class Interpolation:
+    alpha: Decimal
+    beta: Decimal
+    long_price_normalizer: Price
+    short_price_normalizer: Price

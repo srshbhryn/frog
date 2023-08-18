@@ -18,6 +18,7 @@ class Errors:
 class Service(ZmqRpc):
     uri = config.PRICESERVICE_URI
     bind_uri = config.PRICESERVICE_BIND_URI
+
     def __init__(self) -> None:
         super().__init__()
         setup()

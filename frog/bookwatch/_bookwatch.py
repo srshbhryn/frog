@@ -10,7 +10,7 @@ from ._helpers import translate_asset_name
 
 class BookWatch:
     def __init__(self) -> None:
-        self.book: dict[tuple(Pair, Side), list[PriceAmountPair]] = {}
+        self.book: dict[tuple[Pair, Side], list[PriceAmountPair]] = {}
 
     def provide(self):
         try:

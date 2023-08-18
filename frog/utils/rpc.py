@@ -25,9 +25,9 @@ class RpcError(Exception):
 
 class ZmqRpc:
     is_client = False
-    uri = None
-    bind_uri = None
-    rpc_methods: typing.ClassVar[callable] = {}
+    uri: str
+    bind_uri: str
+    rpc_methods: typing.ClassVar[dict[str, typing.Callable]] = {}
 
     @classmethod
     def register(cls, method):
@@ -35,7 +35,6 @@ class ZmqRpc:
         return method
 
     def __init__(self) -> None:
-        self.rpc_methods = {}
         if self.is_client:
             self._init_client()
         else:
@@ -44,8 +43,8 @@ class ZmqRpc:
     def _init_client(self):
         self.socket = zmq.Context().socket(zmq.REP)
         self.socket.connect(self.uri)
-        for name in self.rpc_methods:
-            self.rpc_methods[name] = self._request(name)
+        for name in self.__class__.rpc_methods:
+            self.__class__.rpc_methods[name] = self._request(name)
 
 
     def _request(self, name: str):
@@ -65,7 +64,7 @@ class ZmqRpc:
             try:
                 request = socket.recv_multipart()
                 method_name = request[0].decode()
-                if method_name not in self.rpc_methods:
+                if method_name not in self.__class__.rpc_methods:
                     error_msg = f'No Such Method named as {method_name}'
                     logging.error(error_msg)
                     socket.send_multipart(
@@ -75,7 +74,7 @@ class ZmqRpc:
                     [
                         RpcError.Code.OK,
                         pickle.dumps(
-                            self.rpc_methods[method_name](*pickle.loads(request[1])),
+                            self.__class__.rpc_methods[method_name](*pickle.loads(request[1])),
                         ),
                     ],
                 )
