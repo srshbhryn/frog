@@ -9,13 +9,13 @@ from frog.utils.rpc import RpcError, ZmqRpc
 from ._django_setup import setup
 
 
-class PriceServiceErrors:
+class Errors:
     class PriceIsNotAvailable(RpcError):
         def __init__(self) -> None:
             super().__init__(RpcError.Code.NOT_AVAILABLE)
 
 
-class PriceService(ZmqRpc):
+class Service(ZmqRpc):
     uri = config.PRICESERVICE_URI
     bind_uri = config.PRICESERVICE_BIND_URI
     def __init__(self) -> None:
@@ -40,7 +40,7 @@ class PriceService(ZmqRpc):
             .get('price')
         )
         if price is None:
-            raise PriceServiceErrors.PriceIsNotAvailable()
+            raise Errors.PriceIsNotAvailable()
         return Price(price)
 
     def get_timerange_price(
@@ -69,3 +69,7 @@ class PriceService(ZmqRpc):
         )
 
         return {datetime.fromtimestamp(s + 1): Price(d) for s, d in prices}
+
+
+class Client(Service):
+    is_client = True
