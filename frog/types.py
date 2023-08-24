@@ -1,8 +1,9 @@
-from _decimal import _Decimal, Decimal
 import dataclasses
 import decimal
 import enum
 from decimal import Decimal
+
+from _decimal import _Decimal
 
 
 @dataclasses.dataclass(slots=True)
@@ -68,7 +69,7 @@ class PriceAmountPair:
 
 
 @dataclasses.dataclass(slots=True)
-class Interpolation:
+class Regression:
     alpha: Decimal
     beta: Decimal
     long_price_normalizer: Price

@@ -1,33 +1,23 @@
 import functools
 from datetime import datetime
-from decimal import Decimal
 
 import numpy as np
 from sklearn.linear_model import LinearRegression  # type: ignore
 
-from frog import config
 from frog.tradestore import rpc
-from frog.types import Asset, Interpolation, Pair, Price
+from frog.types import Pair, Price, Regression
 
 _client = rpc.Client()
 
 @functools.lru_cache(maxsize=10 * 2 ** 10)
 def get_linear_regression(
-    long_symbol: Asset,
-    short_symbol: Asset,
+    long_pair: Pair,
+    short_pair: Pair,
     start_time: datetime,
     end_time: datetime,
-) -> Interpolation:
-    long_prices = _client.get_timerange_price(
-        Pair(long_symbol, config.QUOTE),
-        start_time,
-        end_time,
-    )
-    short_prices = _client.get_timerange_price(
-        Pair(short_symbol, config.QUOTE),
-        start_time,
-        end_time,
-    )
+) -> Regression:
+    long_prices = _client.get_timerange_price(long_pair, start_time, end_time)
+    short_prices = _client.get_timerange_price(short_pair, start_time, end_time)
     avg_long_price = sum(long_prices.values(), Price(0)) / len(long_prices)
     avg_short_price = sum(short_prices.values(), Price(0)) / len(short_prices)
     long_price_timestamps = set(long_prices.keys())
@@ -57,25 +47,4 @@ def get_linear_regression(
     )
     alpha = regression.predict([[1, 0]])[0]
     beta = regression.predict([[1, 1]])[0] - alpha
-    return Interpolation(alpha, beta, avg_long_price, avg_short_price)
-
-
-def get_residual(
-    long_symbol: Asset,
-    short_symbol: Asset,
-    start_time: datetime,
-    end_time: datetime,
-    current_long_price: Price,
-    current_short_price: Price,
-) -> Decimal:
-    i = get_linear_regression(
-        long_symbol,
-        short_symbol,
-        start_time,
-        end_time,
-    )
-    normalized_long_price = current_long_price / i.long_price_normalizer
-    normalized_short_price = current_short_price / i.short_price_normalizer
-    return Decimal(
-        normalized_long_price - i.alpha - (i.beta * normalized_short_price),
-    )
+    return Regression(alpha, beta, avg_long_price, avg_short_price)

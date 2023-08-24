@@ -1,11 +1,10 @@
 from datetime import datetime
-from decimal import Decimal
 
 from frog import config
-from frog.types import Asset, Price
+from frog.types import Pair, Regression
 from frog.utils.rpc import ZmqRpc
 
-from ._ptreg import get_residual
+from ._ptreg import get_linear_regression
 
 
 class Service(ZmqRpc):
@@ -13,22 +12,18 @@ class Service(ZmqRpc):
     bind_uri = config.ANALYSISSERVICE_BIND_URI
 
     @ZmqRpc.register
-    def get_residual(
+    def get_regression(
         self,
-        long_asset: Asset,
-        short_asset: Asset,
+        long_pair: Pair,
+        short_pair: Pair,
         start_time: datetime,
         end_time: datetime,
-        current_long_price: Price,
-        current_short_price: Price,
-    ) -> Decimal:
-        return get_residual(
-            long_asset,
-            short_asset,
+    ) -> Regression:
+        return get_linear_regression(
+            long_pair,
+            short_pair,
             start_time,
             end_time,
-            current_long_price,
-            current_short_price,
         )
 
 
