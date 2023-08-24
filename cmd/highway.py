@@ -5,7 +5,7 @@ import zmq
 from frog import config
 
 
-def main():
+def main() -> None:
 
     context = zmq.Context()
 

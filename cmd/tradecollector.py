@@ -5,7 +5,7 @@ from frog import config
 from frog.tradecollector import NobitexTradeCollector
 
 
-def main():
+def main() -> None:
     asyncio.run(NobitexTradeCollector().run())
 
 

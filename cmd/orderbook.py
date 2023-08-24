@@ -8,7 +8,7 @@ from frog import config
 from frog.bookwatch import BookWatch
 
 
-def main():
+def main() -> None:
     context = zmq.Context()
     socket = context.socket(zmq.PUB)
     socket.connect(config.HIGHWAY_XSUB_URI)
@@ -22,8 +22,8 @@ def main():
                     f'order_{pair}_{side}'.encode(),
                     json.dumps(book).encode(),
                 ])
-        except Exception as e:
-            logging.error(f'failed provide {book_watch.__class__.__name__}: {e}.', exc_info=True)
+        except Exception:
+            logging.exception('failed provide "%s".', book_watch.__class__.__name__)
 
 
 if __name__ == '__main__':
