@@ -1,26 +1,21 @@
-import enum
 import dataclasses
+import enum
+from typing import NewType, Optional
 
-from typing import Optional, NewType
-
-from frog.types import Pair, Amount, Price
+from frog.types import Amount, Pair, Price, Side
 from frog.utils.rpc import ZmqRpc
-
-
-class OrderMangerError(enum.Enum):
-    pass
 
 
 @dataclasses.dataclass
 class Order:
-    is_long: bool
+    side: Side
     amount: Amount
-    price: Optional[Price]
+    price: Price
 
 
 @dataclasses.dataclass
 class Position:
-    is_long: bool
+    side: Side
     amount: Amount
 
 
@@ -29,16 +24,17 @@ OrderStore = dict[OrderId, Order]
 
 
 class OrderManger(ZmqRpc):
-
-    pair_to_open_order_store_map: dict[Pair, OrderStore] = {}
-    pair_to_position_map: dict[Pair, Position] = {}
+    def __init__(self) -> None:
+        super().__init__()
+        self.pair_to_open_order_store_map: dict[Pair, OrderStore] = {}
+        self.pair_to_position_map: dict[Pair, Position] = {}
 
     @ZmqRpc.register
     def place_order(self, pair: Pair, order: Order) -> None:
         raise NotImplementedError
 
     @ZmqRpc.register
-    def cancel_order(self, pair: Pair, order_id: OrderId) ->  None:
+    def cancel_order(self, pair: Pair, order_id: OrderId) -> None:
         raise NotImplementedError
 
     @ZmqRpc.register
