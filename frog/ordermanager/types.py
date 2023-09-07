@@ -10,7 +10,7 @@ from frog.utils.rpc import ZmqRpc
 class Order:
     side: Side
     amount: Amount
-    price: Price
+    price: Optional[Price]
 
 
 @dataclasses.dataclass

@@ -1,23 +1,16 @@
-import logging
+from frog.ordermanager import types
+from frog.ordermanager.types import Order, OrderId, OrderStore, Position
+from frog.types import Amount, Pair
+from frog.utils.rpc import ZmqRpc
 
-from ._client import Trader, MarketTrader
 
-from frog.types import Pair, Amount, Price
-from frog.ordermanager._base import OrderManger, ZmqRpc, Order, OrderId, OrderMangerError, OrderStore, Position
-
-class NobitexOrderManager(OrderManger):
-
-    pair_to_open_order_store_map: dict[Pair, OrderStore] = {}
-    pair_to_position_map: dict[Pair, Position] = {}
-
-    _order_queue = []
-
+class OrderManager(types.OrderManger):
     @ZmqRpc.register
     def place_order(self, pair: Pair, order: Order) -> None:
         raise NotImplementedError
 
     @ZmqRpc.register
-    def cancel_order(self, pair: Pair, order_id: OrderId) ->  None:
+    def cancel_order(self, pair: Pair, order_id: OrderId) -> None:
         raise NotImplementedError
 
     @ZmqRpc.register
