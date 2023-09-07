@@ -17,7 +17,8 @@
       "tradestore",
       "XPUB",
       "XSUB",
-      "pytz"
+      "pytz",
+      "ordermanager"
     ],
     "python.pythonPath": "venv/bin/python3",
     "python.testing.autoTestDiscoverOnSaveEnabled": false,
