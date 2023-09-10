@@ -29,6 +29,8 @@ class ZmqRpc:
     bind_uri: str
     rpc_methods: typing.ClassVar[dict[str, typing.Callable]] = {}
 
+    Err = RpcError
+
     @classmethod
     def register(cls, method):
         cls.rpc_methods[method.__name__] = method

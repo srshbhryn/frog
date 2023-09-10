@@ -1,16 +1,27 @@
 import dataclasses
 import enum
+import threading
 from typing import NewType, Optional
 
 from frog.types import Amount, Pair, Price, Side
 from frog.utils.rpc import ZmqRpc
 
 
+class OrderStatus(enum.Enum):
+    queued = 0
+    placed = 1
+    filled = 2
+    canceled = 3  # also failed
+
+
 @dataclasses.dataclass
 class Order:
+    pair: Pair
     side: Side
     amount: Amount
     price: Optional[Price]
+    status = OrderStatus.queued
+    filled_amount = Amount('0')
 
 
 @dataclasses.dataclass
@@ -20,31 +31,27 @@ class Position:
 
 
 OrderId = NewType('OrderId', int)
-OrderStore = dict[OrderId, Order]
 
 
 class OrderManger(ZmqRpc):
     def __init__(self) -> None:
         super().__init__()
-        self.pair_to_open_order_store_map: dict[Pair, OrderStore] = {}
-        self.pair_to_position_map: dict[Pair, Position] = {}
 
-    @ZmqRpc.register
-    def place_order(self, pair: Pair, order: Order) -> None:
+    def _run_server(self) -> None:
+        threading.Thread(self._fill_collector_process, daemon=True)
+        super()._run_server()
+
+    def _fill_collector_process(self) -> None:
         raise NotImplementedError
 
     @ZmqRpc.register
-    def cancel_order(self, pair: Pair, order_id: OrderId) -> None:
+    def place_order(self, order: Order) -> None:
         raise NotImplementedError
 
     @ZmqRpc.register
-    def get_open_orders_store(self, pair: Pair) -> OrderStore:
+    def cancel_order(self, order_id: OrderId) -> None:
         raise NotImplementedError
 
     @ZmqRpc.register
-    def get_position(self, pair: Pair) -> Position:
-        raise NotImplementedError
-
-    @ZmqRpc.register
-    def get_quote_balance(self) -> Amount:
+    def get_order(self, order_id: OrderId) -> Order:
         raise NotImplementedError
