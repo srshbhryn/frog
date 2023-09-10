@@ -53,3 +53,5 @@ ALL_PAIRS: list[Pair] = [
 
 LOG_LEVEL = logging._nameToLevel.get(os.getenv('LOG_LEVEL') or 'INFO' if IS_PROD else 'DEBUG')
 
+
+NOBITEX_TOKEN = os.getenv('NOBITEX_TOKEN')

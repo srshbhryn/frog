@@ -1,27 +1,24 @@
-from typing import TYPE_CHECKING
 import decimal
 import logging
-import time
 import threading
+import time
 
-from frog.types import Amount, Asset, Pair
-from frog.utils.rpc import ZmqRpc
+from frog import config
 from frog.ordermanager.types import (
     Order,
     OrderId,
-    Position,
-    OrderManger as BaseOrderManager,
+    Side,
+    OrderManger,
     OrderStatus,
 )
+from frog.utils.rpc import ZmqRpc
 
-from ._client import Client
+from ._client import Client as NobitexClient
 
 
-class OrderManager(BaseOrderManager):
-    def __init__(self, token: str) -> None:
-        self.token = token
-
-        self._client = Client(token, 'frog1.0')
+class Service(OrderManger):
+    def __init__(self) -> None:
+        self._client = NobitexClient(config.NOBITEX_TOKEN, 'frog1.0')
         self._orders: dict[OrderId, Order] = {}
         self._mutex = threading.Lock()
 
@@ -61,12 +58,23 @@ class OrderManager(BaseOrderManager):
 
     @ZmqRpc.register
     def place_order(self, order: Order) -> None:
+        data = {
+            'type': 'buy' if order.side == Side.LONG else 'sell',
+            'srcCurrency': str(order.pair.base),
+            'dstCurrency': str(order.pair.base),
+            'amount': str(order.amount),
+        }
+        if order.price:
+            data['price'] = str(order.price)
+        else:
+            data['execution'] = 'market'
+
         try:
             placed_order = self._client.request(
                 typ=self._client.Type.private,
-                method=self._client.Method.get,
+                method=self._client.Method.post,
                 url='/market/orders/add',
-                data={},
+                data=data,
             )['order']
             self._orders[placed_order['id']] = order
 
@@ -95,3 +103,7 @@ class OrderManager(BaseOrderManager):
             return self._orders[order_id]
         finally:
             self._mutex.release()
+
+
+class Client(Service):
+    is_client = True

@@ -9,6 +9,7 @@ import pytz
 
 from frog.analyst import rpc as analyst_rpc
 from frog.tradestore import rpc as tradestore_rpc
+from frog.ordermanager.nobitex import rpc as nobitex_rpc
 from frog.types import Amount, Asset, Pair, Price, Side
 from frog.utils import listener
 
