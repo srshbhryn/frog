@@ -4,4 +4,4 @@ import pytz
 
 
 def now() -> datetime.datetime:
-    datetime.datetime.now(tz=pytz.UTC)
+    return datetime.datetime.now(tz=pytz.UTC)

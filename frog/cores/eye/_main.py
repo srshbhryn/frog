@@ -49,7 +49,7 @@ class ShouldDo(Event):
         self.action = action
 
     def do(self, context: 'Context') -> list[Event]:
-        self.action(context)
+        return self.action(context)
 
 
 class CancelAllOrders(Action):
@@ -60,14 +60,14 @@ class CancelAllOrders(Action):
 @dataclasses.dataclass(slots=True)
 class Context:
     state: State
-    internal_events: list['Event'] = None
+    internal_events: list['Event']
     is_long_asset_position_long = False
     order_manager = analyst_rpc.Client()
     analyst = analyst_rpc.Client()
     trade_store = tradestore_rpc.Client()
     nobitex_client = nobitex_rpc.Client()
-    open_order_ids: dict[tuple[Pair, Side], int] = None
-    open_order_deadlines: dict[tuple[Pair, Side], datetime.datetime] = None
+    open_order_ids: dict[tuple[Pair, Side], int]
+    open_order_deadlines: dict[tuple[Pair, Side], datetime.datetime]
     regression_len = 120
     trade_threshold = 0.002
     pricing_factor = 1.0

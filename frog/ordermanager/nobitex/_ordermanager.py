@@ -5,11 +5,12 @@ import time
 
 from frog import config
 from frog.ordermanager.types import (
+    Amount,
     Order,
     OrderId,
-    Side,
     OrderManger,
     OrderStatus,
+    Side,
 )
 from frog.utils.rpc import ZmqRpc
 
@@ -45,7 +46,7 @@ class Service(OrderManger):
                         OrderStatus.canceled,
                     ):
                         continue
-                    self._orders[oid].filled_amount = decimal.Decimal(
+                    self._orders[oid].filled_amount = Amount(
                         order['matchedAmount'],
                     )
                     if order['status'] == 'Done':

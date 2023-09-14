@@ -82,7 +82,7 @@ class Client:
             json=data,
         )
         response.raise_for_status()
-        response = response.json()
-        if not response['status'] == 'ok':
-            raise Client.Error(response)
-        return response
+        response_data = response.json()
+        if not response_data['status'] == 'ok':
+            raise Client.Error(response_data)
+        return response_data

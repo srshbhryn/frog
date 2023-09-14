@@ -1,1 +1,1 @@
-from .nobitex._service import OrderManager as Nobitex
+from .nobitex._ordermanager import Service as Nobitex

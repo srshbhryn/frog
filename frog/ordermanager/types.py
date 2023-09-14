@@ -38,7 +38,7 @@ class OrderManger(ZmqRpc):
         super().__init__()
 
     def _run_server(self) -> None:
-        threading.Thread(self._fill_collector_process, daemon=True)
+        threading.Thread(target=self._fill_collector_process, daemon=True)
         super()._run_server()
 
     def _fill_collector_process(self) -> None:

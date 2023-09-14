@@ -3,7 +3,7 @@ import decimal
 import enum
 from decimal import Decimal
 
-from _decimal import _Decimal
+from _decimal import _Decimal, Decimal
 
 
 @dataclasses.dataclass(slots=True)
@@ -55,8 +55,16 @@ class Price(decimal.Decimal):
     def __add__(self, __value: _Decimal) -> 'Price':
         return Price(super().__add__(__value))
 
-    def __truediv__(self, __value: _Decimal) -> 'Price':
+    def __truediv__(self, __value: _Decimal | float) -> 'Price':
+        if isinstance(__value, float):
+            return Price(super().__truediv__(Decimal(str(__value))))
         return Price(super().__sub__(__value))
+
+    def __mul__(self, __value: _Decimal | float) -> 'Price':
+        if isinstance(__value, float):
+            return Price(super().__mul__(Decimal(str(__value))))
+        return Price(super().__mul__(__value))
+
 
 class Value(decimal.Decimal):
     pass
