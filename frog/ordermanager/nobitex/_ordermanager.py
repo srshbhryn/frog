@@ -57,7 +57,7 @@ class Service(OrderManger):
                 self._mutex.release()
 
     @ZmqRpc.register
-    def place_order(self, order: Order) -> None:
+    def place_order(self, order: Order) -> int:
         data = {
             'type': 'buy' if order.side == Side.LONG else 'sell',
             'srcCurrency': str(order.pair.base),
@@ -77,7 +77,7 @@ class Service(OrderManger):
                 data=data,
             )['order']
             self._orders[placed_order['id']] = order
-
+            return placed_order['id']
         except:
             logging.exception('Error in fetching "/market/orders/list"')
             raise

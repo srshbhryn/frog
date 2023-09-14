@@ -8,16 +8,17 @@ import time
 import pytz
 
 from frog.analyst import rpc as analyst_rpc
-from frog.tradestore import rpc as tradestore_rpc
 from frog.ordermanager.nobitex import rpc as nobitex_rpc
+from frog.ordermanager.types import OrderStatus
+from frog.tradestore import rpc as tradestore_rpc
 from frog.types import Amount, Asset, Pair, Price, Side
 from frog.utils import listener
+from frog.utils.shortcuts import now
 
 
 class State(enum.Enum):
     NO_OPEN_ORDER = 0
-    ONE_OPEN_ORDER = 1
-    TWO_OPEN_ORDERs = 2
+    OPEN_ORDER = 1
 
 
 class Event(Exception):
@@ -59,23 +60,28 @@ class CancelAllOrders(Action):
 @dataclasses.dataclass(slots=True)
 class Context:
     state: State
-    internal_events: list['Event']
+    internal_events: list['Event'] = None
     is_long_asset_position_long = False
     order_manager = analyst_rpc.Client()
     analyst = analyst_rpc.Client()
     trade_store = tradestore_rpc.Client()
+    nobitex_client = nobitex_rpc.Client()
+    open_order_ids: dict[tuple[Pair, Side], int] = None
+    open_order_deadlines: dict[tuple[Pair, Side], datetime.datetime] = None
     regression_len = 120
     trade_threshold = 0.002
     pricing_factor = 1.0
-    wait_period = 240
+    wait_period = datetime.timedelta(minutes=240)
     long_asset = Asset.BTC
     short_asset = Asset.ETH
     quote_asset = Asset.RLS
-    base_trade_value = Amount('300_000_0')
+    base_trade_value = Amount('500_000_0')
 
     def __init__(self) -> None:
         self.event_listener = listener.Listener(list(self.event_listener_topics))
         self.internal_events = []
+        self.open_order_ids = {}
+        self.open_order_deadlines = {}
 
     @property
     def long_pair(self) -> Pair:
@@ -110,10 +116,65 @@ class PlaceOrder(Action):
         self.pair = pair
         self.amount = amount
         self.price = price
+        self.side = side
         super().__init__()
 
     def __call__(self, context: Context) -> list[Event]:
+        order_id = context.nobitex_client.place_order(
+            nobitex_rpc.Order(
+                pair=self.pair,
+                side=self.side,
+                price=self.price,
+            ),
+        )
+        context.open_order_ids[(self.pair, self.side)] = order_id
+        context.open_order_deadlines[
+            (
+                self.pair,
+                self.side,
+            )
+        ] = (
+            now() + context.wait_period
+        )
         return []
+
+
+class CancelExpiredOrders(Action):
+    def __call__(self, context: Context) -> list[Event]:
+        orders_keys = list(context.open_order_ids.keys())
+        for orders_key in orders_keys:
+            if now() > context.open_order_deadlines[orders_key]:
+                try:
+                    context.nobitex_client.cancel_order(context.open_order_ids[orders_key])
+                    context.open_order_ids.pop(orders_key, None)
+                    context.open_order_deadlines.pop(orders_key, None)
+
+                except nobitex_rpc.Client.Err:
+                    logging.exception('err in CheckIfOrdersAreFilled')
+
+
+class CheckIfOrdersAreOpen(Action):
+    def __call__(self, context: Context) -> list[Event]:
+        try:
+            for k, order_id in [(k, oid) for k, oid in context.open_order_ids.items()]:
+                if context.nobitex_client.get_order(order_id).status in (
+                    OrderStatus.filled,
+                    OrderStatus.canceled,
+                ):
+                    context.open_order_ids.pop(k, None)
+                else:
+                    break
+
+        except nobitex_rpc.Client.Err:
+            logging.exception('err in CheckIfOrdersAreFilled')
+        else:
+            if not context.open_order_ids:
+                return [ShouldDo(ChangeState(State.NO_OPEN_ORDER))]
+            return [
+                ShouldDo(SleepForAWhile(30)),
+                ShouldDo(CancelExpiredOrders()),
+                ShouldDo(CheckIfOrdersAreOpen()),
+            ]
 
 
 class CheckResidual(Action):
@@ -197,8 +258,8 @@ def main(context: Context) -> None:
             case State.NO_OPEN_ORDER, (topics.LONG_PAIR_ORDERBOOK | topics.SHORT_PAIR_ORDERBOOK):
                 fun = CheckResidual()
 
-            case State.ONE_OPEN_ORDER, topics.MY_ORDER_FILL:
-                fun = ChangeState(State.NO_OPEN_ORDER)
+            case State.OPEN_ORDER, _:
+                fun = CheckIfOrdersAreOpen()
 
             case _, ShouldDo():
                 fun = event.do
