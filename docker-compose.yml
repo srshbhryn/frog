@@ -35,3 +35,10 @@ services:
     restart: always
     volumes:
       - ./data:/data/
+
+  eye:
+    image: frog_image
+    command: "python cmd/eye.py"
+    env_file:
+      - .env
+    restart: always
