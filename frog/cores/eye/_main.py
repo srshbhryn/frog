@@ -8,6 +8,7 @@ import time
 import pytz
 
 from frog.analyst import rpc as analyst_rpc
+from frog.cores.eye._main import Context, Event
 from frog.ordermanager.nobitex import rpc as nobitex_rpc
 from frog.ordermanager.types import OrderStatus
 from frog.tradestore import rpc as tradestore_rpc
@@ -25,12 +26,8 @@ class Event(Exception):
     pass
 
 
-class FailedOrderPlacement(Event):
-    pass
-
-
 class Action:
-    def __call__(self, context: 'Context') -> list[Event]:
+    def __call__(self, _: 'Context') -> list[Event]:
         raise NotImplementedError
 
 
@@ -51,12 +48,6 @@ class ShouldDo(Event):
     def do(self, context: 'Context') -> list[Event]:
         return self.action(context)
 
-
-class CancelAllOrders(Action):
-    def __call__(self, context: 'Context') -> list[Event]:
-        return []
-
-
 @dataclasses.dataclass(slots=True)
 class Context:
     state: State
@@ -76,12 +67,19 @@ class Context:
     short_asset = Asset.ETH
     quote_asset = Asset.RLS
     base_trade_value = Amount('500_000_0')
+    external_events_topic: type[listener.Topic]
 
     def __init__(self) -> None:
-        self.event_listener = listener.Listener(list(self.event_listener_topics))
         self.internal_events = []
         self.open_order_ids = {}
         self.open_order_deadlines = {}
+
+        class Topic(enum.Enum):
+            LONG_ORDERBOOK = listener.Topic(f'order_{self.long_pair}'.encode())
+            SHORT_ORDERBOOK = listener.Topic(f'order_{self.short_pair}'.encode())
+
+        self.external_events_topic = Topic
+        self.event_listener = listener.Listener(list(self.event_listener_topics))
 
     @property
     def long_pair(self) -> Pair:
@@ -92,13 +90,8 @@ class Context:
         return Pair(self.short_asset, self.quote_asset)
 
     @functools.cached_property
-    def event_listener_topics(self) -> enum.Enum:
-        class Topic(enum.Enum):
-            MY_ORDER_FILL = listener.Topic(b'my_trade_')
-            LONG_PAIR_ORDERBOOK = listener.Topic(f'order_{self.long_pair}'.encode())
-            SHORT_PAIR_ORDERBOOK = listener.Topic(f'order_{self.short_pair}'.encode())
-
-        return Topic
+    def event_listener_topics(self) -> type[enum.Enum]:
+        return self.external_events_topic
 
     @functools.cached_property
     def event_listener(self) -> listener.Listener:
@@ -109,6 +102,10 @@ class SleepForAWhile(Action):
     def __init__(self, a_while: int) -> None:
         super().__init__()
         self.a_while = a_while
+
+    def __call__(self, _: Context) -> list[Event]:
+        time.sleep(self.a_while)
+        return []
 
 
 class PlaceOrder(Action):
@@ -150,7 +147,8 @@ class CancelExpiredOrders(Action):
                     context.open_order_deadlines.pop(orders_key, None)
 
                 except nobitex_rpc.Client.Err:
-                    logging.exception('err in CheckIfOrdersAreFilled')
+                    logging.exception('err in CancelExpiredOrders')
+        return []
 
 
 class CheckIfOrdersAreOpen(Action):
@@ -179,10 +177,7 @@ class CheckIfOrdersAreOpen(Action):
 
 class CheckResidual(Action):
     def __call__(self, context: Context) -> list[Event]:
-        end_time = datetime.datetime.fromtimestamp(
-            int(time.time() / 60) * 60,
-            tz=pytz.UTC,
-        )
+        end_time = now().replace(second=0, microsecond=0)
         start_time = end_time - datetime.timedelta(minutes=context.regression_len)
         try:
             long_price = context.trade_store.get(context.long_pair, end_time)
@@ -255,17 +250,21 @@ def main(context: Context) -> None:
             event = context.event_listener.wait()
 
         match context.state, event:
-            case State.NO_OPEN_ORDER, (topics.LONG_PAIR_ORDERBOOK | topics.SHORT_PAIR_ORDERBOOK):
+            case _, ShouldDo():
+                fun = event.do
+
+            case State.NO_OPEN_ORDER, topics.LONG_ORDERBOOK | topics.SHORT_ORDERBOOK:
                 fun = CheckResidual()
 
             case State.OPEN_ORDER, _:
                 fun = CheckIfOrdersAreOpen()
 
-            case _, ShouldDo():
-                fun = event.do
-
             case _:
-                logging.error('Unhandled event state pair: %s %s', event, context.state)
+                logging.error(
+                    'Unhandled "(state, event)"  pair: %s %s',
+                    event,
+                    context.state,
+                )
 
                 def fun() -> list[Event]:
                     return []
