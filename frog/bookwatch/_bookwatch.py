@@ -10,9 +10,9 @@ from ._helpers import translate_asset_name
 
 class BookWatch:
     def __init__(self) -> None:
-        self.book: dict[tuple[Pair, Side], list[PriceAmountPair]] = {}
+        self.book: dict[tuple[Pair, Side], list[tuple(float, float)]] = {}
 
-    def provide(self):
+    def provide(self) -> None:
         try:
             response = requests.get(
                 url='https://api.nobitex.ir/v2/orderbook/all',
@@ -31,11 +31,11 @@ class BookWatch:
             self.book[pair, Side.SHORT] = []
             price_factor = 10 if pair == Asset.RLS else 1
             for price, amount in data[translate_asset_name(pair)]['bids']:
-                self.book[(str(pair), str(Side.LONG))].append(
-                    PriceAmountPair(price * price_factor, amount),
+                self.book[pair, Side.LONG].append(
+                    (float(price) * price_factor, float(amount)),
                 )
 
             for price, amount in data[translate_asset_name(pair)]['asks']:
                 self.book[pair, Side.SHORT].append(
-                    PriceAmountPair(price * price_factor, amount),
+                    (float(price) * price_factor, float(amount)),
                 )
