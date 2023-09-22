@@ -3,7 +3,9 @@ import decimal
 import enum
 from decimal import Decimal
 
-from _decimal import _Decimal, Decimal
+from typing_extensions import TypeAlias
+
+_Decimal: TypeAlias = Decimal | int
 
 
 @dataclasses.dataclass(slots=True)
