@@ -105,7 +105,7 @@ class NobitexTradeCollector:
                 await self.zmq_sock.send_multipart(
                     [
                         f'trade_{pair}'.lower().encode(),
-                        json.dumps(trade.as_dict()).encode(),
+                        json.dumps(serialized_trade.as_dict()).encode(),
                     ],
                 )
 
