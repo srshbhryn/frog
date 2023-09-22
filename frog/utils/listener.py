@@ -20,8 +20,11 @@ class Event:
     data: bytes
 
 
+reminder_topic = Topic(b'REMINDER')
+
+
 class Reminder(Event):
-    topic = Topic(b'REMINDER')
+    topic = reminder_topic
 
 
 class Listener:

@@ -16,7 +16,7 @@ from frog.types import Pair
 
 @dataclasses.dataclass(slots=True)
 class Trade:
-    pair: str
+    pair: Pair
     time: int
     amount: str
     price: str

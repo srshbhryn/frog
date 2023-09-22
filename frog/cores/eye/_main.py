@@ -5,15 +5,13 @@ import functools
 import logging
 import time
 
-import pytz
-
 from frog.analyst import rpc as analyst_rpc
-from frog.cores.eye._main import Context, Event
 from frog.ordermanager.nobitex import rpc as nobitex_rpc
 from frog.ordermanager.types import OrderStatus
 from frog.tradestore import rpc as tradestore_rpc
 from frog.types import Amount, Asset, Pair, Price, Side
 from frog.utils import listener
+from frog.utils.listener import Event
 from frog.utils.shortcuts import now
 
 
@@ -22,12 +20,8 @@ class State(enum.Enum):
     OPEN_ORDER = 1
 
 
-class Event(Exception):
-    pass
-
-
 class Action:
-    def __call__(self, _: 'Context') -> list[Event]:
+    def __call__(self, _: 'Context') -> None:
         raise NotImplementedError
 
 
@@ -35,23 +29,34 @@ class ChangeState(Action):
     def __init__(self, state: State) -> None:
         self._state = state
 
-    def __call__(self, context: 'Context') -> list[Event]:
+    def __call__(self, context: 'Context') -> None:
         context.state = self._state
-        return []
 
 
-class ShouldDo(Event):
-    def __init__(self, action: Action) -> None:
-        super().__init__()
-        self.action = action
+class ShouldDo(listener.Reminder):
+    def __init__(
+        self,
+        context: 'Context',
+        timeout: datetime.timedelta,
+        actions: list[Action],
+    ) -> None:
+        self.actions = actions
+        context.event_listener.add_reminder(timeout, self)
 
-    def do(self, context: 'Context') -> list[Event]:
-        return self.action(context)
+    def do(self, context: 'Context') -> None:
+        for action in self.actions:
+            action(context)
+
+
+@dataclasses.dataclass(slots=True)
+class Topics:
+    LONG_ORDERBOOK: listener.Topic
+    SHORT_ORDERBOOK: listener.Topic
+
 
 @dataclasses.dataclass(slots=True)
 class Context:
     state: State
-    internal_events: list['Event']
     is_long_asset_position_long = False
     order_manager = analyst_rpc.Client()
     analyst = analyst_rpc.Client()
@@ -67,19 +72,26 @@ class Context:
     short_asset = Asset.ETH
     quote_asset = Asset.RLS
     base_trade_value = Amount('500_000_0')
-    external_events_topic: type[listener.Topic]
+    external_events_topics: Topics
+    action_queue: list[Action]
 
     def __init__(self) -> None:
-        self.internal_events = []
         self.open_order_ids = {}
         self.open_order_deadlines = {}
+        self.external_events_topics = Topics(
+            listener.Topic(f'order_{self.long_pair}'.encode()),
+            listener.Topic(f'order_{self.short_pair}'.encode()),
+        )
+        self.action_queue = []
 
-        class Topic(enum.Enum):
-            LONG_ORDERBOOK = listener.Topic(f'order_{self.long_pair}'.encode())
-            SHORT_ORDERBOOK = listener.Topic(f'order_{self.short_pair}'.encode())
+    def add_action(self, action: Action) -> None:
+        self.action_queue.append(action)
 
-        self.external_events_topic = Topic
-        self.event_listener = listener.Listener(list(self.event_listener_topics))
+    def pop_action(self) -> Action:
+        return self.action_queue.pop(0)
+
+    def has_action(self) -> bool:
+        return len(self.action_queue) != 0
 
     @property
     def long_pair(self) -> Pair:
@@ -89,13 +101,15 @@ class Context:
     def short_pair(self) -> Pair:
         return Pair(self.short_asset, self.quote_asset)
 
-    @functools.cached_property
-    def event_listener_topics(self) -> type[enum.Enum]:
-        return self.external_events_topic
 
     @functools.cached_property
     def event_listener(self) -> listener.Listener:
-        return listener.Listener(list(self.event_listener_topics))
+        return listener.Listener(
+            [
+                self.external_events_topics.LONG_ORDERBOOK,
+                self.external_events_topics.SHORT_ORDERBOOK,
+            ],
+        )
 
 
 class SleepForAWhile(Action):
@@ -103,9 +117,8 @@ class SleepForAWhile(Action):
         super().__init__()
         self.a_while = a_while
 
-    def __call__(self, _: Context) -> list[Event]:
+    def __call__(self, _: Context) -> None:
         time.sleep(self.a_while)
-        return []
 
 
 class PlaceOrder(Action):
@@ -116,9 +129,10 @@ class PlaceOrder(Action):
         self.side = side
         super().__init__()
 
-    def __call__(self, context: Context) -> list[Event]:
+    def __call__(self, context: Context) -> None:
         order_id = context.nobitex_client.place_order(
             nobitex_rpc.Order(
+                amount=self.amount,
                 pair=self.pair,
                 side=self.side,
                 price=self.price,
@@ -133,11 +147,10 @@ class PlaceOrder(Action):
         ] = (
             now() + context.wait_period
         )
-        return []
 
 
 class CancelExpiredOrders(Action):
-    def __call__(self, context: Context) -> list[Event]:
+    def __call__(self, context: Context) -> None:
         orders_keys = list(context.open_order_ids.keys())
         for orders_key in orders_keys:
             if now() > context.open_order_deadlines[orders_key]:
@@ -148,11 +161,10 @@ class CancelExpiredOrders(Action):
 
                 except nobitex_rpc.Client.Err:
                     logging.exception('err in CancelExpiredOrders')
-        return []
 
 
 class CheckIfOrdersAreOpen(Action):
-    def __call__(self, context: Context) -> list[Event]:
+    def __call__(self, context: Context) -> None:
         try:
             for k, order_id in [(k, oid) for k, oid in context.open_order_ids.items()]:
                 if context.nobitex_client.get_order(order_id).status in (
@@ -167,106 +179,100 @@ class CheckIfOrdersAreOpen(Action):
             logging.exception('err in CheckIfOrdersAreFilled')
         else:
             if not context.open_order_ids:
-                return [ShouldDo(ChangeState(State.NO_OPEN_ORDER))]
-            return [
-                ShouldDo(SleepForAWhile(30)),
-                ShouldDo(CancelExpiredOrders()),
-                ShouldDo(CheckIfOrdersAreOpen()),
-            ]
+                context.add_action(ChangeState(State.NO_OPEN_ORDER))
+
+            else:
+                for action in (
+                    SleepForAWhile(30),
+                    CancelExpiredOrders(),
+                    CheckIfOrdersAreOpen(),
+                ):
+                    context.add_action(action)
 
 
 class CheckResidual(Action):
-    def __call__(self, context: Context) -> list[Event]:
+    def __call__(self, context: Context) -> None:
         end_time = now().replace(second=0, microsecond=0)
         start_time = end_time - datetime.timedelta(minutes=context.regression_len)
+
         try:
             long_price = context.trade_store.get(context.long_pair, end_time)
             short_price = context.trade_store.get(context.short_pair, end_time)
         except tradestore_rpc.Errors.PriceIsNotAvailable:
-            events = []
+            logging.exception('PriceIsNotAvailable')
+            return
+
+        regression = context.analyst.get_regression(
+            context.long_pair,
+            context.short_pair,
+            start_time,
+            end_time,
+        )
+        residual = (
+            long_price / regression.long_price_normalizer
+            - regression.alpha
+            - regression.beta * short_price / regression.short_price_normalizer
+        )
+
+        if residual > 1 + context.trade_threshold:
+            actions = [
+                PlaceOrder(
+                    context.long_pair,
+                    context.base_trade_value,
+                    long_price * context.pricing_factor,
+                    Side.SHORT,
+                ),
+                PlaceOrder(
+                    context.short_pair,
+                    context.base_trade_value * regression.beta,
+                    short_price / context.pricing_factor,
+                    Side.LONG,
+                ),
+            ]
+        elif residual < 1 - context.trade_threshold:
+            actions = [
+                PlaceOrder(
+                    context.long_pair,
+                    context.base_trade_value,
+                    long_price / context.pricing_factor,
+                    Side.LONG,
+                ),
+                PlaceOrder(
+                    context.short_pair,
+                    context.base_trade_value * regression.beta,
+                    short_price * context.pricing_factor,
+                    Side.SHORT,
+                ),
+            ]
         else:
-            regression = context.analyst.get_regression(
-                context.long_pair,
-                context.short_pair,
-                start_time,
-                end_time,
-            )
-            residual = (
-                long_price / regression.long_price_normalizer
-                - regression.alpha
-                - regression.beta * short_price / regression.short_price_normalizer
-            )
+            actions = []
 
-            if residual > 1 + context.trade_threshold:
-                events = [
-                    ShouldDo(
-                        PlaceOrder(
-                            context.long_pair,
-                            context.base_trade_value,
-                            long_price * context.pricing_factor,
-                            Side.SHORT,
-                        ),
-                    ),
-                    ShouldDo(
-                        PlaceOrder(
-                            context.short_pair,
-                            context.base_trade_value * regression.beta,
-                            short_price / context.pricing_factor,
-                            Side.LONG,
-                        ),
-                    ),
-                ]
-            elif residual < 1 - context.trade_threshold:
-                events = [
-                    ShouldDo(
-                        PlaceOrder(
-                            context.long_pair,
-                            context.base_trade_value,
-                            long_price / context.pricing_factor,
-                            Side.LONG,
-                        ),
-                    ),
-                    ShouldDo(
-                        PlaceOrder(
-                            context.short_pair,
-                            context.base_trade_value * regression.beta,
-                            short_price * context.pricing_factor,
-                            Side.SHORT,
-                        ),
-                    ),
-                ]
-            else:
-                events = []
-
-        return events
+        for action in actions:
+            context.add_action(action)
 
 
 def main(context: Context) -> None:
-    topics = context.event_listener_topics
+    topics = context.external_events_topics
+
     while True:
-        if context.internal_events:
-            event = context.internal_events.pop()
+        if context.has_action():
+            context.pop_action()(context)
+            continue
+
+        event = context.event_listener.wait()
+
+        if isinstance(event, ShouldDo):
+            event.do(context)
+        elif context.state == State.NO_OPEN_ORDER and event in (
+            topics.LONG_ORDERBOOK,
+            topics.SHORT_ORDERBOOK,
+        ):
+            CheckResidual()(context)
+        elif context.state == State.OPEN_ORDER:
+            CheckIfOrdersAreOpen()(context)
         else:
-            event = context.event_listener.wait()
-
-        match context.state, event:
-            case _, ShouldDo():
-                fun = event.do
-
-            case State.NO_OPEN_ORDER, topics.LONG_ORDERBOOK | topics.SHORT_ORDERBOOK:
-                fun = CheckResidual()
-
-            case State.OPEN_ORDER, _:
-                fun = CheckIfOrdersAreOpen()
-
-            case _:
-                logging.error(
-                    'Unhandled "(state, event)"  pair: %s %s',
-                    event,
-                    context.state,
-                )
-
-                def fun() -> list[Event]:
-                    return []
-
-        context.internal_events += fun(context)
+            logging.error(
+                'Unhandled "(state, event)"  pair: %s %s',
+                event,
+                context.state,
+            )
