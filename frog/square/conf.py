@@ -1,0 +1,9 @@
+import os
+
+REGISTER = b'REG'
+
+NO_SUCH_SERVICE = b'NSS'
+
+BACKEND_PORT = os.getenv('SQ_BACKEND_PORT') or '1212'
+
+FRONTEND_PORT = os.getenv('SQ_FRONTEND_PORT') or '1616'
