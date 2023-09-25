@@ -2,5 +2,6 @@ venv
 data
 logs
 *.pyc
+*.log
 .env
 *.sqlite3
