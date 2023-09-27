@@ -1,9 +1,11 @@
 import os
 
+from frog import config
+
 REGISTER = b'REG'
 
 NO_SUCH_SERVICE = b'NSS'
 
-BACKEND_PORT = os.getenv('SQ_BACKEND_PORT') or '1212'
+BACKEND_PORT = config.SQUARE_BACKEND_PORT
 
-FRONTEND_PORT = os.getenv('SQ_FRONTEND_PORT') or '1616'
+FRONTEND_PORT = config.SQUARE_FRONTEND_PORT

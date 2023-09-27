@@ -2,16 +2,16 @@ from datetime import datetime
 
 from frog import config
 from frog.types import Pair, Regression
-from frog.utils.rpc import ZmqRpc
+from frog.square.rpc import RpcService
 
 from ._ptreg import get_linear_regression
 
 
-class Service(ZmqRpc):
-    uri = config.ANALYSISSERVICE_URI
-    bind_uri = config.ANALYSISSERVICE_BIND_URI
+class Service(RpcService):
+    topic: bytes
+    square_host: config.SQUARE_HOST
 
-    @ZmqRpc.register
+    @RpcService.register
     def get_regression(
         self,
         long_pair: Pair,
@@ -25,7 +25,3 @@ class Service(ZmqRpc):
             start_time,
             end_time,
         )
-
-
-class Client(Service):
-    is_client = True
