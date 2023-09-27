@@ -7,6 +7,8 @@ from queue import Queue
 import msgpack
 import zmq
 
+from frog import config
+
 from .conf import BACKEND_PORT, FRONTEND_PORT, NO_SUCH_SERVICE, REGISTER
 
 
@@ -30,8 +32,8 @@ class RpcError(Exception):
 
 class RpcService:
     topic: bytes
-    square_host: str
     rpc_methods: typing.ClassVar[dict[str, typing.Callable]] = {}
+    square_host = config.SQUARE_HOST
 
     Err = RpcError
 
@@ -86,7 +88,7 @@ class RpcService:
         self.response_queue = Queue(maxsize=128)
         self.socket = socket
         for name in self.__class__.rpc_methods:
-            self.__class__.rpc_methods[name] = self._request(name)
+            setattr(self, name, self._request(name))
 
     def _request(self, name: str) -> callable:
         def wrapped(*args, **kwargs) -> callable:
@@ -103,7 +105,7 @@ class RpcService:
 
 
 class RpcClient:
-    square_host: str
+    square_host = config.SQUARE_HOST
 
     def __init__(self) -> None:
         self.socket = zmq.Context().socket(zmq.PAIR)
@@ -111,7 +113,7 @@ class RpcClient:
         self.topic_to_services_map: dict[bytes, RpcService] = {}
         for service in (
             attr
-            for attr in self.__dict__
+            for attr in self.__class__.__dict__.values()
             if isinstance(
                 attr,
                 RpcService,
@@ -119,7 +121,6 @@ class RpcClient:
         ):
             service.init_client(self.socket)
             self.topic_to_services_map[service.topic] = service
-
         threading.Thread(target=self.run_client, args=(), daemon=True).start()
 
     def run_client(self) -> None:

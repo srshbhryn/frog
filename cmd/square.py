@@ -9,4 +9,5 @@ if __name__ == '__main__':
         level=config.LOG_LEVEL,
         datefmt='%Y-%m-%d %H:%M:%S',
     )
+    logging.info('service started')
     Square().run()
