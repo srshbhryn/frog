@@ -24,10 +24,9 @@ if IS_PROD:
     HIGHWAY_XSUB_PORT = '4142'
     HIGHWAY_XPUB_PORT = '4143'
 
-    SQUARE_HOST = '127.0.0.1'
+    SQUARE_HOST = 'square.sorushbahariyan-frog.svc'
     SQUARE_FRONTEND_PORT = '1616'
     SQUARE_BACKEND_PORT = '1212'
-
 
 
 ALL_PAIRS: list[Pair] = [
