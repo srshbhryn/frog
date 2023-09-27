@@ -52,7 +52,7 @@ class Client:
 
     def fill_collector(self) -> None:
         socket = zmq.Context().socket(zmq.PUB)
-        socket.connect(config.HIGHWAY_XSUB_URI)
+        socket.connect(f'tcp://{config.HIGHWAY_HOST}:{config.HIGHWAY_XSUB_PORT}')
 
     def initialize(self) -> None:
         self.sessions: dict[Client.Type, requests.Session] = {

@@ -82,7 +82,8 @@ class NobitexTradeCollector:
         }
         ctx = zmq.asyncio.Context()
         self.zmq_sock = ctx.socket(zmq.PUB)
-        self.zmq_sock.connect(config.HIGHWAY_XSUB_URI)
+        self.zmq_sock.connect(f'tcp://{config.HIGHWAY_HOST}:{config.HIGHWAY_XSUB_PORT}')
+
         self.store = TradeStore()
 
     async def run(self) -> None:

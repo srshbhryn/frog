@@ -74,7 +74,8 @@ class Listener:
 
     def _subscribe(self) -> None:
         self.socket = async_zmq.Context().socket(zmq.SUB)
-        self.socket.connect(config.HIGHWAY_XPUB_URI)
+        self.socket.connect(f'tcp://{config.HIGHWAY_HOST}:{config.HIGHWAY_XPUB_PORT}')
+
         for topic in self.topics:
             if topic == self._reminder_topic:
                 continue

@@ -11,7 +11,7 @@ from frog.bookwatch import BookWatch
 def main() -> None:
     context = zmq.Context()
     socket = context.socket(zmq.PUB)
-    socket.connect(config.HIGHWAY_XSUB_URI)
+    socket.connect(f'tcp://{config.HIGHWAY_HOST}:{config.HIGHWAY_XSUB_PORT}')
     book_watch = BookWatch()
     while True:
         time.sleep(1)

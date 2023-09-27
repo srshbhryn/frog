@@ -19,7 +19,8 @@ def store_main():
     context = zmq.Context()
     socket = context.socket(zmq.SUB)
     socket.subscribe('trade_')
-    socket.connect(config.HIGHWAY_XPUB_URI)
+    socket.connect(f'tcp://{config.HIGHWAY_HOST}:{config.HIGHWAY_XPUB_PORT}')
+
     while True:
         data = socket.recv_multipart()
         store_trade(json.loads(data[1]))
