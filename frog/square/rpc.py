@@ -103,8 +103,10 @@ class RpcService:
 
 
 class RpcClient:
+    square_host: str
+
     def __init__(self) -> None:
-        self.socket = zmq.Context().socket(zmq.REQ)
+        self.socket = zmq.Context().socket(zmq.PAIR)
         self.socket.connect(f'tcp://{self.square_host}:{FRONTEND_PORT}')
         self.topic_to_services_map: dict[bytes, RpcService] = {}
         for service in (
