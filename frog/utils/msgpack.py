@@ -1,4 +1,4 @@
-import functools
+from typing import Optional
 from typing import Callable
 
 import msgpack
@@ -20,27 +20,32 @@ class _EncoderStore:
         return code
 
     @staticmethod
-    def encoder(obj):
+    def encoder(obj: any) -> bytes:
         code = _EncoderStore.type_to_code_map.get(type(obj))
         if code is None:
             raise TypeError('Unknown type: %r' % (obj,))
         return msgpack.ExtType(
             code,
-            msgpack.dumps(_EncoderStore.code_to_encoder_map[code](obj)),
+            _EncoderStore.code_to_encoder_map[code](obj),
         )
 
     @staticmethod
-    def decoder(code, data) -> any:
-        decoder = _EncoderStore.code_to_type_map.get(code)
+    def decoder(code: int, data: bytes) -> any:
+        decoder = _EncoderStore.code_to_decoder_map.get(code)
         if decoder is None:
             return msgpack.ExtType(code, data)
         return decoder(data)
 
 
-def register(tp: type, encoder: callable, decoder: callable) -> None:
+def register(tp: type, encoder: callable, decoder: Optional[callable] = None) -> None:
     code = _EncoderStore.type_to_code_map.get(tp) or _EncoderStore.get_next_code_for(tp)
-    _EncoderStore.code_type_encoder_map[code] = encoder
-    _EncoderStore.code_type_decoder_map[code] = decoder
+    _EncoderStore.code_to_encoder_map[code] = encoder
+    if decoder is None:
+
+        def decoder(encoded: bytes) -> tp:
+            return tp(**loads(encoded))
+
+    _EncoderStore.code_to_decoder_map[code] = decoder
 
 
 def loads(data: bytes) -> any:
@@ -48,4 +53,4 @@ def loads(data: bytes) -> any:
 
 
 def dumps(obj: any) -> bytes:
-    return msgpack.packb(obj, default=_EncoderStore.encoder, use_bin_type=False)
+    return msgpack.dumps(obj, default=_EncoderStore.encoder, use_bin_type=False)
