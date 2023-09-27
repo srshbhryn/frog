@@ -10,10 +10,10 @@ def main() -> None:
     context = zmq.Context()
 
     frontend = context.socket(zmq.XPUB)
-    frontend.bind(config.HIGHWAY_XPUB_BIND_URI)
+    frontend.bind(f'tcp://*:{config.HIGHWAY_XPUB_PORT}')
 
     backend = context.socket(zmq.XSUB)
-    backend.bind(config.HIGHWAY_XSUB_BIND_URI)
+    backend.bind(f'tcp://*:{config.HIGHWAY_XSUB_PORT}')
 
     zmq.proxy(frontend, backend)
 
