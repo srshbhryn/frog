@@ -6,9 +6,12 @@
       "inproc",
       "ioloop",
       "levelname",
+      "msgpack",
       "Nobitex",
+      "ordermanager",
       "PRICESERVICE",
       "ptreg",
+      "pytz",
       "REFERER",
       "SHIB",
       "sklearn",
@@ -16,9 +19,7 @@
       "tradecollector",
       "tradestore",
       "XPUB",
-      "XSUB",
-      "pytz",
-      "ordermanager"
+      "XSUB"
     ],
     "python.pythonPath": "venv/bin/python3",
     "python.testing.autoTestDiscoverOnSaveEnabled": false,
