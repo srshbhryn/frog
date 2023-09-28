@@ -24,8 +24,8 @@ class Square:
         self.backend_socket.bind(f'tcp://*:{BACKEND_PORT}')
 
     def run(self) -> None:
-        threading.Thread(target=self.frontend, args=(), daemon=True).start()
-        self.backend()
+        threading.Thread(target=self.backend, args=(), daemon=True).start()
+        self.frontend()
 
     def backend(self) -> None:
         while True:
