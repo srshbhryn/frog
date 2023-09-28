@@ -1,13 +1,13 @@
 import enum
 import logging
-import typing
 import threading
+import typing
 from queue import Queue
 
-import msgpack
 import zmq
 
 from frog import config
+from frog.utils import msgpack
 
 from .conf import BACKEND_PORT, FRONTEND_PORT, NO_SUCH_SERVICE, REGISTER
 
