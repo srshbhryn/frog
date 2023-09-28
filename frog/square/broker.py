@@ -45,11 +45,11 @@ class Square:
                 topic = self.get_topic_from_identity(server_identity)
                 logging.debug(
                     'backend msg \ts: %s\tc: %s ',
-                    server_identity.decode(),
-                    client_identity.decode(),
+                    server_identity,
+                    client_identity,
                 )
                 self.frontend_socket.send_multipart(
-                    (client_identity, b'', topic, *data),
+                    (client_identity, topic, *data),
                 )
             except:
                 logging.exception('Failed backend read.')
