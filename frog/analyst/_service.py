@@ -1,8 +1,8 @@
 from datetime import datetime
 
 from frog import config
-from frog.types import Pair, Regression
 from frog.square.rpc import RpcService
+from frog.types import Pair, Regression
 
 from ._ptreg import get_linear_regression
 

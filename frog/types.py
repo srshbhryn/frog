@@ -1,6 +1,7 @@
 import dataclasses
 import decimal
 import enum
+import datetime
 from decimal import Decimal
 
 from typing_extensions import TypeAlias
@@ -133,3 +134,14 @@ msgpack.register(Regression, Regression.encoder)
 msgpack.register(PriceAmountPair, PriceAmountPair.encoder)
 msgpack.register(Pair, Pair.encoder)
 msgpack.register(Asset, Asset.encoder, Asset.decoder)
+
+
+def datetime_encoder(obj: datetime.datetime) -> bytes:
+    return obj.isoformat().encode()
+
+
+def datetime_decoder(data: bytes) -> datetime.datetime:
+    return datetime.datetime.fromisoformat(data.decode())
+
+
+msgpack.register(datetime.datetime, datetime_encoder, datetime_decoder)

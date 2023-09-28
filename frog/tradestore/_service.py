@@ -4,7 +4,8 @@ from django.db import models
 
 from frog import config
 from frog.types import Pair, Price
-from frog.utils.rpc import RpcError, ZmqRpc
+from frog.square.rpc import RpcService, RpcError
+from frog.utils import msgpack
 
 from ._django_setup import setup
 
@@ -15,9 +16,8 @@ class Errors:
             super().__init__(RpcError.Code.NOT_AVAILABLE)
 
 
-class Service(ZmqRpc):
-    uri = config.PRICESERVICE_URI
-    bind_uri = config.PRICESERVICE_BIND_URI
+class Service(RpcService):
+    topic = b'prices'
 
     def __init__(self) -> None:
         super().__init__()
@@ -25,6 +25,7 @@ class Service(ZmqRpc):
         from .db.models import Trade
         self.trade_model = Trade
 
+    @RpcService.register
     def get(self, pair: Pair, timestamp: datetime) -> Price:
         price = (
             self.trade_model.objects.filter(
@@ -41,9 +42,10 @@ class Service(ZmqRpc):
             .get('price')
         )
         if price is None:
-            raise Errors.PriceIsNotAvailable()
+            raise Errors.PriceIsNotAvailable
         return Price(price)
 
+    @RpcService.register
     def get_timerange_price(
         self,
         pair: Pair,
@@ -70,7 +72,3 @@ class Service(ZmqRpc):
         )
 
         return {datetime.fromtimestamp(s + 1): Price(d) for s, d in prices}
-
-
-class Client(Service):
-    is_client = True
