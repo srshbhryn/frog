@@ -11,13 +11,13 @@ DATA_DIR = pathlib.Path(__file__).parent.parent.joinpath('data/')
 if IS_PROD:
     DATA_DIR = pathlib.Path('/data/')
 
-HIGHWAY_HOST = os.getenv('HIGHWAY_NET_HOST')
-HIGHWAY_XSUB_PORT = os.getenv('HIGHWAY_NET_XSUB_PORT') or '1213'
-HIGHWAY_XPUB_PORT = os.getenv('HIGHWAY_NET_XPUB_PORT') or '1214'
+HIGHWAY_HOST = os.getenv('HIGHWAY_HOST')
+HIGHWAY_XSUB_PORT = os.getenv('HIGHWAY_XSUB_PORT') or '1213'
+HIGHWAY_XPUB_PORT = os.getenv('HIGHWAY_XPUB_PORT') or '1214'
 
-SQUARE_HOST = os.getenv('SQUARE_NET_HOST')
-SQUARE_FRONTEND_PORT = os.getenv('SQUARE_FRONTEND_NET_PORT') or '2213'
-SQUARE_BACKEND_PORT = os.getenv('SQUARE_BACKEND_NET_PORT') or '2214'
+SQUARE_HOST = os.getenv('SQUARE_HOST')
+SQUARE_FRONTEND_PORT = os.getenv('SQUARE_FRONTEND_PORT') or '2213'
+SQUARE_BACKEND_PORT = os.getenv('SQUARE_BACKEND_PORT') or '2214'
 
 ALL_PAIRS: list[Pair] = [
     Pair(Asset.BTC, Asset.RLS),
