@@ -40,9 +40,14 @@ class Square:
                 if client_identity == REGISTER:
                     topic = data[0]
                     self.topic_to_identity_map[topic] = server_identity
-                    logging.info('registered service: %s', topic)
+                    logging.info('registered service: %s: %s', topic, server_identity)
                     continue
                 topic = self.get_topic_from_identity(server_identity)
+                logging.debug(
+                    'backend msg \ts: %s\tc: %s ',
+                    server_identity.decode(),
+                    client_identity.decode(),
+                )
                 self.frontend_socket.send_multipart(
                     (client_identity, b'', topic, *data),
                 )
@@ -58,6 +63,11 @@ class Square:
                     topic,
                     *data,
                 ) = self.frontend_socket.recv_multipart()
+                logging.debug(
+                    'frontend msg\tt: %s\tc: %s ',
+                    topic,
+                    client_identity,
+                )
 
                 server_identity = self.topic_to_identity_map.get(topic)
                 if server_identity is None:
