@@ -1,7 +1,7 @@
 import dataclasses
+from datetime import datetime, timedelta
 import decimal
 import enum
-import datetime
 from decimal import Decimal
 
 from typing_extensions import TypeAlias
@@ -41,7 +41,7 @@ class Asset(enum.Enum):
         for asset in Asset:
             if value == asset.value:
                 return asset
-        raise Exception("Cant decode asset.")
+        raise Exception('Cant decode asset.')
 
 
 @dataclasses.dataclass(slots=True)
@@ -76,6 +76,8 @@ class Side(enum.Enum):
 class Amount(decimal.Decimal):
     pass
 
+    def __repr__(self) -> str:
+        return super().__repr__().replace('Decimal', 'Amount')
 
 class Price(decimal.Decimal):
     def __add__(self, __value: _Decimal) -> 'Price':
@@ -90,6 +92,9 @@ class Price(decimal.Decimal):
         if isinstance(__value, float):
             return Price(super().__mul__(Decimal(str(__value))))
         return Price(super().__mul__(__value))
+
+    def __repr__(self) -> str:
+        return super().__repr__().replace('Decimal', 'Price')
 
 
 class Value(decimal.Decimal):
@@ -136,12 +141,41 @@ msgpack.register(Pair, Pair.encoder)
 msgpack.register(Asset, Asset.encoder, Asset.decoder)
 
 
-def datetime_encoder(obj: datetime.datetime) -> bytes:
+def datetime_encoder(obj: datetime) -> bytes:
     return obj.isoformat().encode()
 
 
-def datetime_decoder(data: bytes) -> datetime.datetime:
-    return datetime.datetime.fromisoformat(data.decode())
+def datetime_decoder(data: bytes) -> datetime:
+    return datetime.fromisoformat(data.decode())
 
 
-msgpack.register(datetime.datetime, datetime_encoder, datetime_decoder)
+msgpack.register(datetime, datetime_encoder, datetime_decoder)
+
+
+def decimal_encoder(obj: Decimal) -> bytes:
+    return str(obj).encode()
+
+
+def decimal_decoder(data: bytes) -> Decimal:
+    return Decimal(data.decode())
+
+
+def price_encoder(obj: Price) -> bytes:
+    return str(obj).encode()
+
+
+def price_decoder(data: bytes) -> Price:
+    return Price(data.decode())
+
+
+def amount_encoder(obj: Amount) -> bytes:
+    return str(obj).encode()
+
+
+def amount_decoder(data: bytes) -> Amount:
+    return Amount(data.decode())
+
+
+msgpack.register(Price, decimal_encoder, decimal_decoder)
+msgpack.register(Amount, decimal_encoder, decimal_decoder)
+msgpack.register(Decimal, decimal_encoder, decimal_decoder)

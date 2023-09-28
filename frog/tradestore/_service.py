@@ -1,11 +1,10 @@
 from datetime import datetime, timedelta
 
+import pytz
 from django.db import models
 
-from frog import config
+from frog.square.rpc import RpcError, RpcService
 from frog.types import Pair, Price
-from frog.square.rpc import RpcService, RpcError
-from frog.utils import msgpack
 
 from ._django_setup import setup
 
@@ -71,4 +70,4 @@ class Service(RpcService):
             .values_list('second', 'price')
         )
 
-        return {datetime.fromtimestamp(s + 1): Price(d) for s, d in prices}
+        return {datetime.fromtimestamp(s + 1, tz=pytz.UTC): Price(d) for s, d in prices}

@@ -1,5 +1,4 @@
-from typing import Optional
-from typing import Callable
+from typing import Callable, Optional
 
 import msgpack
 
@@ -23,7 +22,8 @@ class _EncoderStore:
     def encoder(obj: any) -> bytes:
         code = _EncoderStore.type_to_code_map.get(type(obj))
         if code is None:
-            raise TypeError('Unknown type: %r' % (obj,))
+            msg = f'Unknown type: {obj!r}'
+            raise TypeError(msg)
         return msgpack.ExtType(
             code,
             _EncoderStore.code_to_encoder_map[code](obj),
@@ -49,7 +49,12 @@ def register(tp: type, encoder: callable, decoder: Optional[callable] = None) ->
 
 
 def loads(data: bytes) -> any:
-    return msgpack.loads(data, ext_hook=_EncoderStore.decoder, raw=False)
+    return msgpack.loads(
+        data,
+        ext_hook=_EncoderStore.decoder,
+        raw=False,
+        strict_map_key=False,
+    )
 
 
 def dumps(obj: any) -> bytes:

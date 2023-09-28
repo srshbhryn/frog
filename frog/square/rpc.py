@@ -1,8 +1,8 @@
 import enum
-import uuid
 import logging
 import threading
 import typing
+import uuid
 from queue import Queue
 
 import zmq
@@ -23,10 +23,11 @@ class RpcError(Exception):
         NO_SERVICE = b'8'
 
         @classmethod
-        def get_from_value(cls, value):
+        def get_from_value(cls, value: bytes) -> 'RpcError.Code':
             for c in cls:
                 if c.value == value:
                     return c
+            return None
 
     def __init__(
         self,
