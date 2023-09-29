@@ -105,7 +105,3 @@ class Service(OrderManger):
             return self._orders[order_id]
         finally:
             self._mutex.release()
-
-
-class Client(Service):
-    is_client = True
