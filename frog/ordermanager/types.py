@@ -81,9 +81,9 @@ class OrderManger(RpcService):
     def __init__(self) -> None:
         super().__init__()
 
-    def _run_server(self) -> None:
-        threading.Thread(target=self._fill_collector_process, daemon=True)
-        super()._run_server()
+    def run_server(self) -> None:
+        threading.Thread(target=self._fill_collector_process, daemon=True).start()
+        super().run_server()
 
     def _fill_collector_process(self) -> None:
         raise NotImplementedError

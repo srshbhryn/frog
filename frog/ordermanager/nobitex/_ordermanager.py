@@ -28,13 +28,19 @@ class Service(OrderManger):
         while True:
             time.sleep(5)
             try:
+                try:
+                    min_oi = min(self._orders.keys())
+                except Exception:
+                    min_oi = 0
+
                 orders = self._client.request(
                     typ=self._client.Type.private,
                     method=self._client.Method.get,
-                    url='/market/orders/list',
+                    url=f'/market/orders/list?status=all&details=2&fromId={min_oi}',
                 )['orders']
             except:
                 logging.exception('Error in fetching "/market/orders/list"')
+                continue
             self._mutex.acquire()
             try:
                 for order in orders:
