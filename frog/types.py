@@ -85,6 +85,8 @@ class Side(enum.Enum):
         raise Exception('Cant decode side.')
 
 
+msgpack.register(Side, Side.encoder, Side.decoder)
+
 class Amount(decimal.Decimal):
     pass
 

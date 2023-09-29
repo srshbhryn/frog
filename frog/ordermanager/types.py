@@ -35,9 +35,9 @@ class Order:
     pair: Pair
     side: Side
     amount: Amount
-    price: Optional[Price]
-    status = OrderStatus.queued
-    filled_amount = Amount('0')
+    price: Optional[Price] = None
+    status: Optional[OrderStatus] = OrderStatus.queued
+    filled_amount: Optional[Amount] = Amount('0')
 
     @staticmethod
     def encoder(instance: 'Order') -> bytes:

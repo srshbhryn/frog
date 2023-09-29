@@ -63,7 +63,7 @@ class Service(OrderManger):
         data = {
             'type': 'buy' if order.side == Side.LONG else 'sell',
             'srcCurrency': str(order.pair.base),
-            'dstCurrency': str(order.pair.base),
+            'dstCurrency': str(order.pair.quote),
             'amount': str(order.amount),
         }
         if order.price:
@@ -71,6 +71,7 @@ class Service(OrderManger):
         else:
             data['execution'] = 'market'
 
+        self._mutex.acquire()
         try:
             placed_order = self._client.request(
                 typ=self._client.Type.private,
@@ -93,7 +94,7 @@ class Service(OrderManger):
             method=self._client.Method.post,
             url='/market/orders/update-status',
             data={
-                'id': order_id,
+                'order': order_id,
                 'status': 'canceled',
             },
         )
