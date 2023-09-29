@@ -66,11 +66,23 @@ class Pair:
 
 
 class Side(enum.Enum):
-    SHORT = False
-    LONG = True
+    SHORT = b'1'
+    LONG = b'2'
 
     def __str__(self) -> str:
         return self.name
+
+    @staticmethod
+    def encoder(instance: 'Side') -> bytes:
+        return instance.value
+
+    @staticmethod
+    def decoder(data: bytes) -> 'Side':
+        value = data
+        for asset in Side:
+            if value == asset.value:
+                return asset
+        raise Exception('Cant decode side.')
 
 
 class Amount(decimal.Decimal):

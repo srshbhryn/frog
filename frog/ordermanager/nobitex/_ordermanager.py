@@ -1,4 +1,3 @@
-import decimal
 import logging
 import threading
 import time
@@ -12,12 +11,14 @@ from frog.ordermanager.types import (
     OrderStatus,
     Side,
 )
-from frog.utils.rpc import ZmqRpc
+from frog.square.rpc import RpcService
 
 from ._client import Client as NobitexClient
 
 
 class Service(OrderManger):
+    topic = b'nobitex'
+
     def __init__(self) -> None:
         self._client = NobitexClient(config.NOBITEX_TOKEN, 'frog1.0')
         self._orders: dict[OrderId, Order] = {}
@@ -57,7 +58,7 @@ class Service(OrderManger):
             finally:
                 self._mutex.release()
 
-    @ZmqRpc.register
+    @RpcService.register
     def place_order(self, order: Order) -> int:
         data = {
             'type': 'buy' if order.side == Side.LONG else 'sell',
@@ -85,7 +86,7 @@ class Service(OrderManger):
         finally:
             self._mutex.release()
 
-    @ZmqRpc.register
+    @RpcService.register
     def cancel_order(self, order_id: OrderId) -> None:
         self._client.request(
             typ=self._client.Type.private,
@@ -97,7 +98,7 @@ class Service(OrderManger):
             },
         )
 
-    @ZmqRpc.register
+    @RpcService.register
     def get_order(self, order_id: OrderId) -> Order:
         self._mutex.acquire()
         try:
