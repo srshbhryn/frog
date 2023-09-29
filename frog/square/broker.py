@@ -72,7 +72,7 @@ class Square:
                 server_identity = self.topic_to_identity_map.get(topic)
                 if server_identity is None:
                     self.frontend_socket.send_multipart(
-                        (client_identity, b'', topic, NO_SUCH_SERVICE),
+                        (client_identity, topic, NO_SUCH_SERVICE),
                     )
                 self.backend_socket.send_multipart(
                     (server_identity, b'', client_identity, *data),
