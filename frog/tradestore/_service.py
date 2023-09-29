@@ -58,7 +58,7 @@ class Service(RpcService):
                 time__lt=end_timestamp.timestamp(),
             )
             .annotate(
-                second=models.functions.Cast(5 * 'time', models.IntegerField()) / 5,
+                second=models.functions.Cast(5 * models.F('time'), models.IntegerField()) / 5,
             )
             .values('second')
             .annotate(
