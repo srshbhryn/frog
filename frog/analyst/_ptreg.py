@@ -4,10 +4,16 @@ from datetime import datetime
 import numpy as np
 from sklearn.linear_model import LinearRegression  # type: ignore
 
-from frog.tradestore import rpc
+from frog.square.rpc import RpcClient
+from frog.tradestore import rpc as prices_rpc
 from frog.types import Pair, Price, Regression
 
-_client = rpc.Client()
+
+class Client(RpcClient):
+    prices = prices_rpc.Service()
+
+
+_client = Client().prices
 
 @functools.lru_cache(maxsize=10 * 2 ** 10)
 def get_linear_regression(
@@ -25,21 +31,14 @@ def get_linear_regression(
     timestamps_intersection_set = long_price_timestamps.intersection(
         short_price_timestamps,
     )
-    if (
-        len(timestamps_intersection_set) > len(short_price_timestamps) / 2
-        and len(timestamps_intersection_set) > len(long_price_timestamps) / 2
-    ):
-        long_returns = []
-        short_returns = []
-        timestamps_intersection = list(timestamps_intersection_set)
-        timestamps_intersection.sort()
-        first_ts = timestamps_intersection[0]
-        for ts in timestamps_intersection:
-            long_returns.append(long_prices[ts] / long_prices[first_ts])
-            short_returns.append(short_prices[ts] / short_prices[first_ts])
-    else:
-        long_returns = []
-        short_returns = []
+    long_returns = []
+    short_returns = []
+    timestamps_intersection = list(timestamps_intersection_set)
+    timestamps_intersection.sort()
+    first_ts = timestamps_intersection[0]
+    for ts in timestamps_intersection:
+        long_returns.append(long_prices[ts] / long_prices[first_ts])
+        short_returns.append(short_prices[ts] / short_prices[first_ts])
 
     regression = LinearRegression().fit(
         np.array([[1, p] for p in short_returns]),

@@ -1,6 +1,5 @@
 from datetime import datetime
 
-from frog import config
 from frog.square.rpc import RpcService
 from frog.types import Pair, Regression
 
@@ -8,8 +7,7 @@ from ._ptreg import get_linear_regression
 
 
 class Service(RpcService):
-    topic: bytes
-    square_host: config.SQUARE_HOST
+    topic = b'ptreg'
 
     @RpcService.register
     def get_regression(
