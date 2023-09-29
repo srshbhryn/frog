@@ -37,7 +37,7 @@ class Listener:
         self.client_socket.connect(self.inter_process_uri)
         self.server_socket = async_zmq.Context().socket(zmq.PUB)
         self.reminders: list[asyncio.Task[None]] = []
-        Thread(target=self._background_fun, args=(), daemon=True)
+        Thread(target=self._background_fun, args=(), daemon=True).start()
 
     def wait(self) -> Event:
         topic, data = self.client_socket.recv_multipart()

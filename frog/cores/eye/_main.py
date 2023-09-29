@@ -11,6 +11,7 @@ from frog.ordermanager.types import OrderStatus
 from frog.tradestore import rpc as tradestore_rpc
 from frog.types import Amount, Asset, Pair, Price, Side
 from frog.utils import listener
+from frog.square.rpc import RpcClient, RpcService
 from frog.utils.listener import Event
 from frog.utils.shortcuts import now
 
@@ -54,14 +55,17 @@ class Topics:
     SHORT_ORDERBOOK: listener.Topic
 
 
+class Client(RpcClient):
+    analyst = analyst_rpc.Service()
+    trade_store = tradestore_rpc.Service()
+    nobitex_client = nobitex_rpc.Service()
+
+
 @dataclasses.dataclass(slots=True)
 class Context:
     state: State
     is_long_asset_position_long = False
-    order_manager = analyst_rpc.Client()
-    analyst = analyst_rpc.Client()
-    trade_store = tradestore_rpc.Client()
-    nobitex_client = nobitex_rpc.Client()
+    client = Client()
     open_order_ids: dict[tuple[Pair, Side], int]
     open_order_deadlines: dict[tuple[Pair, Side], datetime.datetime]
     regression_len = 120
@@ -74,6 +78,19 @@ class Context:
     base_trade_value = Amount('500_000_0')
     external_events_topics: Topics
     action_queue: list[Action]
+    event_listener: listener.Listener
+
+    @property
+    def analyst(self) -> RpcService:
+        return self.client.analyst
+
+    @property
+    def trade_store(self) -> RpcService:
+        return self.client.trade_store
+
+    @property
+    def nobitex_client(self) -> RpcService:
+        return self.client.nobitex_client
 
     def __init__(self) -> None:
         self.open_order_ids = {}
@@ -83,6 +100,12 @@ class Context:
             listener.Topic(f'order_{self.short_pair}'.encode()),
         )
         self.action_queue = []
+        self.event_listener = listener.Listener(
+            [
+                self.external_events_topics.LONG_ORDERBOOK,
+                self.external_events_topics.SHORT_ORDERBOOK,
+            ],
+        )
 
     def add_action(self, action: Action) -> None:
         self.action_queue.append(action)
@@ -100,16 +123,6 @@ class Context:
     @property
     def short_pair(self) -> Pair:
         return Pair(self.short_asset, self.quote_asset)
-
-
-    @functools.cached_property
-    def event_listener(self) -> listener.Listener:
-        return listener.Listener(
-            [
-                self.external_events_topics.LONG_ORDERBOOK,
-                self.external_events_topics.SHORT_ORDERBOOK,
-            ],
-        )
 
 
 class SleepForAWhile(Action):
@@ -251,7 +264,8 @@ class CheckResidual(Action):
             context.add_action(action)
 
 
-def main(context: Context) -> None:
+def main() -> None:
+    context = Context()
     topics = context.external_events_topics
 
     while True:
