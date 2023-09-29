@@ -30,7 +30,7 @@ class Service(RpcService):
             self.trade_model.objects.filter(
                 pair=str(pair),
                 time__lt=timestamp.timestamp(),
-                time__gt=(timestamp - timedelta(seconds=5)).timestamp(),
+                time__gt=(timestamp - timedelta(seconds=60)).timestamp(),
             )
             .aggregate(
                 price=models.Sum(
@@ -58,7 +58,7 @@ class Service(RpcService):
                 time__lt=end_timestamp.timestamp(),
             )
             .annotate(
-                second=models.functions.Cast(5 * models.F('time'), models.IntegerField()) / 5,
+                second=models.functions.Cast(60 * models.F('time'), models.IntegerField()) / 60,
             )
             .values('second')
             .annotate(
