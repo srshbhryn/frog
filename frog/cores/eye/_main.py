@@ -269,11 +269,15 @@ def main() -> None:
     topics = context.external_events_topics
 
     while True:
+        logging.debug('main loop')
         if context.has_action():
+            logging.debug('has action')
             context.pop_action()(context)
             continue
 
+        logging.debug('waiting for event')
         event = context.event_listener.wait()
+        logging.debug('received')
 
         if isinstance(event, ShouldDo):
             event.do(context)
