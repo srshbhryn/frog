@@ -1,18 +1,17 @@
 import dataclasses
 import datetime
 import enum
-import functools
 import logging
 import time
+from decimal import Decimal
 
 from frog.analyst import rpc as analyst_rpc
 from frog.ordermanager.nobitex import rpc as nobitex_rpc
 from frog.ordermanager.types import OrderStatus
+from frog.square.rpc import RpcClient
 from frog.tradestore import rpc as tradestore_rpc
 from frog.types import Amount, Asset, Pair, Price, Side
 from frog.utils import listener
-from frog.square.rpc import RpcClient, RpcService
-from frog.utils.listener import Event
 from frog.utils.shortcuts import now
 
 
@@ -51,8 +50,10 @@ class ShouldDo(listener.Reminder):
 
 @dataclasses.dataclass(slots=True)
 class Topics:
-    LONG_ORDERBOOK: listener.Topic
-    SHORT_ORDERBOOK: listener.Topic
+    LONG_LONG_ORDERBOOK: listener.Topic
+    LONG_SHORT_ORDERBOOK: listener.Topic
+    SHORT_LONG_ORDERBOOK: listener.Topic
+    SHORT_SHORT_ORDERBOOK: listener.Topic
 
 
 class Client(RpcClient):
@@ -69,8 +70,8 @@ class Context:
     open_order_ids: dict[tuple[Pair, Side], int]
     open_order_deadlines: dict[tuple[Pair, Side], datetime.datetime]
     regression_len = 120
-    trade_threshold = 0.002
-    pricing_factor = 1.0
+    trade_threshold = Decimal('0.002')
+    pricing_factor = Decimal('1.0')
     wait_period = datetime.timedelta(minutes=240)
     long_asset = Asset.BTC
     short_asset = Asset.ETH
@@ -81,29 +82,34 @@ class Context:
     event_listener: listener.Listener
 
     @property
-    def analyst(self) -> RpcService:
+    def analyst(self) -> analyst_rpc.Service:
         return self.client.analyst
 
     @property
-    def trade_store(self) -> RpcService:
+    def trade_store(self) -> tradestore_rpc.Service:
         return self.client.trade_store
 
     @property
-    def nobitex_client(self) -> RpcService:
+    def nobitex_client(self) -> nobitex_rpc.Service:
         return self.client.nobitex_client
 
     def __init__(self) -> None:
+        self.state = State.NO_OPEN_ORDER
         self.open_order_ids = {}
         self.open_order_deadlines = {}
         self.external_events_topics = Topics(
-            listener.Topic(f'order_{self.long_pair}'.encode()),
-            listener.Topic(f'order_{self.short_pair}'.encode()),
+            listener.Topic(f'order_{self.long_pair}_LONG'.encode()),
+            listener.Topic(f'order_{self.long_pair}_SHORT'.encode()),
+            listener.Topic(f'order_{self.short_pair}_LONG'.encode()),
+            listener.Topic(f'order_{self.short_pair}_SHORT'.encode()),
         )
         self.action_queue = []
         self.event_listener = listener.Listener(
             [
-                self.external_events_topics.LONG_ORDERBOOK,
-                self.external_events_topics.SHORT_ORDERBOOK,
+                self.external_events_topics.LONG_LONG_ORDERBOOK,
+                self.external_events_topics.LONG_SHORT_ORDERBOOK,
+                self.external_events_topics.SHORT_LONG_ORDERBOOK,
+                self.external_events_topics.SHORT_SHORT_ORDERBOOK,
             ],
         )
 
@@ -221,6 +227,10 @@ class CheckResidual(Action):
             start_time,
             end_time,
         )
+        regression.alpha = Decimal(regression.alpha)
+        regression.beta = Decimal(regression.beta)
+        regression.long_price_normalizer = Decimal(regression.long_price_normalizer)
+        regression.short_price_normalizer = Decimal(regression.short_price_normalizer)
         residual = (
             long_price / regression.long_price_normalizer
             - regression.alpha
@@ -231,13 +241,13 @@ class CheckResidual(Action):
             actions = [
                 PlaceOrder(
                     context.long_pair,
-                    context.base_trade_value,
+                    context.base_trade_value / (long_price * context.pricing_factor),
                     long_price * context.pricing_factor,
                     Side.SHORT,
                 ),
                 PlaceOrder(
                     context.short_pair,
-                    context.base_trade_value * regression.beta,
+                    context.base_trade_value * regression.beta / (short_price / context.pricing_factor),
                     short_price / context.pricing_factor,
                     Side.LONG,
                 ),
@@ -246,13 +256,13 @@ class CheckResidual(Action):
             actions = [
                 PlaceOrder(
                     context.long_pair,
-                    context.base_trade_value,
+                    context.base_trade_value / (long_price / context.pricing_factor),
                     long_price / context.pricing_factor,
                     Side.LONG,
                 ),
                 PlaceOrder(
                     context.short_pair,
-                    context.base_trade_value * regression.beta,
+                    context.base_trade_value * regression.beta / (short_price * context.pricing_factor),
                     short_price * context.pricing_factor,
                     Side.SHORT,
                 ),
@@ -281,9 +291,11 @@ def main() -> None:
 
         if isinstance(event, ShouldDo):
             event.do(context)
-        elif context.state == State.NO_OPEN_ORDER and event in (
-            topics.LONG_ORDERBOOK,
-            topics.SHORT_ORDERBOOK,
+        elif context.state == State.NO_OPEN_ORDER and event.topic in (
+            topics.LONG_LONG_ORDERBOOK,
+            topics.LONG_SHORT_ORDERBOOK,
+            topics.SHORT_LONG_ORDERBOOK,
+            topics.SHORT_SHORT_ORDERBOOK,
         ):
             CheckResidual()(context)
         elif context.state == State.OPEN_ORDER:
