@@ -1,6 +1,7 @@
 import enum
 import logging
 import threading
+import time
 import typing
 import uuid
 from queue import Queue
@@ -9,40 +10,38 @@ import zmq
 
 from frog import config
 from frog.utils import msgpack
+from frog.utils.shortcuts import get_zmq_context
 
-from .conf import BACKEND_PORT, FRONTEND_PORT, NO_SUCH_SERVICE, REGISTER
+
+class RpcCode(enum.Enum):
+    OK = b'0'
+    BAD_REQUEST = b'1'
+    UNEXPECTED_ERROR = b'-1'
+    NOT_AVAILABLE = b'4'
+    INVALID_METHOD = b'5'
+    NO_SERVICE = b'8'
+
+    @classmethod
+    def get_from_value(cls, value: bytes) -> 'RpcCode':
+        for c in cls:
+            if c.value == value:
+                return c
+        return None
 
 
 class RpcError(Exception):
-    class Code(enum.Enum):
-        OK = b'0'
-        BAD_REQUEST = b'1'
-        UNEXPECTED_ERROR = b'-1'
-        NOT_AVAILABLE = b'4'
-        INVALID_METHOD = b'5'
-        NO_SERVICE = b'8'
-
-        @classmethod
-        def get_from_value(cls, value: bytes) -> 'RpcError.Code':
-            for c in cls:
-                if c.value == value:
-                    return c
-            return None
-
     def __init__(
         self,
-        code: typing.Optional[Code] = None,
+        code: typing.Optional[RpcCode] = None,
         msg: typing.Optional[str] = None,
     ) -> None:
-        self.code = code or self.Code.BAD_REQUEST
+        self.code = code or RpcCode.BAD_REQUEST
         self.msg = msg or self.__class__.__name__
 
 
 class RpcService:
     topic: bytes
     rpc_methods: typing.ClassVar[dict[str, typing.Callable]] = {}
-    square_host = config.SQUARE_HOST
-
     Err = RpcError
 
     @classmethod
@@ -51,20 +50,25 @@ class RpcService:
         return method
 
     def __init__(self) -> None:
-        pass
+        self.topic = b'service_' + self.topic
 
     def run_server(self) -> None:
-        socket = zmq.Context().socket(zmq.REQ)
-        socket.connect(f'tcp://{self.square_host}:{BACKEND_PORT}')
-        socket.send_multipart((REGISTER, self.topic))
+        requests_socket: zmq.Socket = get_zmq_context().socket(zmq.SUB)
+        requests_socket.subscribe(self.topic)
+        requests_socket.connect(f'tcp://{config.HIGHWAY_HOST}:{config.HIGHWAY_XPUB_PORT}')
+
+        responses_socket: zmq.Socket = get_zmq_context().socket(zmq.PUB)
+        responses_socket.connect(f'tcp://{config.HIGHWAY_HOST}:{config.HIGHWAY_XSUB_PORT}')
 
         while True:
             try:
                 (
+                    topic,
                     client_identity,
                     method_name_b,
                     args_kwargs_b,
-                ) = socket.recv_multipart()
+                ) = requests_socket.recv_multipart()
+
                 method_name = method_name_b.decode()
                 args_kwargs = msgpack.loads(args_kwargs_b)
                 args = args_kwargs['args']
@@ -74,12 +78,12 @@ class RpcService:
                     error_msg = f'No Such Method named as {method_name}'
                     logging.error(error_msg)
                     return_value = error_msg.encode()
-                    code = RpcError.Code.INVALID_METHOD
+                    code = RpcCode.INVALID_METHOD
                 else:
                     return_value = msgpack.dumps(
                         self.__class__.rpc_methods[method_name](self, *args, **kwargs),
                     )
-                    code = RpcError.Code.OK
+                    code = RpcCode.OK
 
             except RpcError as e:
                 logging.warning('Handled rpc Error', exc_info=True)
@@ -87,27 +91,29 @@ class RpcService:
                 return_value = e.msg.encode()
             except Exception as e:
                 logging.exception('Unhandled rpc Error')
-                code = RpcError.Code.UNEXPECTED_ERROR
+                code = RpcCode.UNEXPECTED_ERROR
                 return_value = f'{e}'.encode()
-            socket.send_multipart((client_identity, code.value, return_value))
+            responses_socket.send_multipart(
+                (
+                    client_identity,
+                    topic,
+                    code.value,
+                    return_value,
+                ),
+            )
 
-    def init_client(self, socket: zmq.Socket, client_key: bytes) -> None:
-        self.client_key = client_key
+    def init_client(self, requests_queue: Queue) -> None:
         self.response_queue = Queue(maxsize=128)
-        self.socket = socket
+        self.request_queue = requests_queue
         for name in self.__class__.rpc_methods:
             setattr(self, name, self._request(name))
 
     def _request(self, name: str) -> callable:
         def wrapped(*args, **kwargs) -> callable:
             args_kwargs_b = msgpack.dumps({'args': args, 'kwargs': kwargs})
-            self.socket.send_multipart(
-                (b'', self.topic, name.encode(), args_kwargs_b),
-            )
+            self.request_queue.put((self.topic, name.encode(), args_kwargs_b))
             code, return_value = self.response_queue.get()
-            if code == NO_SUCH_SERVICE:
-                raise RpcError(RpcError.Code.NO_SERVICE)
-            if not code == RpcError.Code.OK:
+            if not code == RpcCode.OK:
                 raise RpcError(code, return_value.decode())
             return msgpack.loads(return_value)
 
@@ -115,13 +121,12 @@ class RpcService:
 
 
 class RpcClient:
-    square_host = config.SQUARE_HOST
-
     def __init__(self) -> None:
-        self.key = uuid.uuid4().hex[:8].encode()
-        self.socket = zmq.Context().socket(zmq.DEALER)
-        self.socket.connect(f'tcp://{self.square_host}:{FRONTEND_PORT}')
-        self.topic_to_services_map: dict[bytes, RpcService] = {}
+        self.key = uuid.uuid4().hex[:16].encode()  # Client identity
+
+        topic_to_response_queues_map: dict[bytes, Queue] = {}
+        requests_queue = Queue(maxsize=128)
+
         for service in (
             attr
             for attr in self.__class__.__dict__.values()
@@ -130,16 +135,42 @@ class RpcClient:
                 RpcService,
             )
         ):
-            service.init_client(self.socket, self.key)
-            self.topic_to_services_map[service.topic] = service
-        threading.Thread(target=self.run_client, args=(), daemon=True).start()
+            service.init_client(requests_queue)
+            topic_to_response_queues_map[service.topic] = service.response_queue
 
-    def run_client(self) -> None:
+        threading.Thread(
+            target=self.run_client_responses_loop,
+            args=(topic_to_response_queues_map,),
+            daemon=True,
+        ).start()
+        threading.Thread(
+            target=self.run_client_requests_loop,
+            args=(requests_queue,),
+            daemon=True,
+        ).start()
+        time.sleep(1)
+
+    def run_client_responses_loop(self, topic_to_response_queues_map) -> None:
+        responses_socket: zmq.Socket = get_zmq_context().socket(zmq.SUB)
+        responses_socket.subscribe(self.key)
+        responses_socket.connect(f'tcp://{config.HIGHWAY_HOST}:{config.HIGHWAY_XPUB_PORT}')
+
         while True:
             try:
-                (topic, code, return_value) = self.socket.recv_multipart()
-                self.topic_to_services_map[topic].response_queue.put_nowait(
-                    (RpcError.Code.get_from_value(code), return_value),
+                (_, topic, code, return_value) = responses_socket.recv_multipart()
+                topic_to_response_queues_map[topic].put_nowait(
+                    (RpcCode.get_from_value(code), return_value),
                 )
             except Exception:
-                logging.exception('error in rpc client')
+                logging.exception('error in rpc client response')
+
+    def run_client_requests_loop(self, requests_queue) -> None:
+        requests_socket: zmq.Socket = get_zmq_context().socket(zmq.PUB)
+        requests_socket.connect(f'tcp://{config.HIGHWAY_HOST}:{config.HIGHWAY_XSUB_PORT}')
+
+        while True:
+            try:
+                topic, *data = requests_queue.get()
+                requests_socket.send_multipart((topic, self.key, *data))
+            except Exception:
+                logging.exception('error in rpc client request')

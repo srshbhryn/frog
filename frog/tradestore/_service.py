@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import pytz
 from django.db import models
 
-from frog.square.rpc import RpcError, RpcService
+from frog.square.rpc import RpcCode, RpcError, RpcService
 from frog.types import Pair, Price
 
 from ._django_setup import setup
@@ -12,17 +12,20 @@ from ._django_setup import setup
 class Errors:
     class PriceIsNotAvailable(RpcError):
         def __init__(self) -> None:
-            super().__init__(RpcError.Code.NOT_AVAILABLE)
+            super().__init__(RpcCode.NOT_AVAILABLE)
 
 
 class Service(RpcService):
     topic = b'prices'
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+    def run_server(self) -> None:
         setup()
         from .db.models import Trade
         self.trade_model = Trade
+        return super().run_server()
 
     @RpcService.register
     def get(self, pair: Pair, timestamp: datetime) -> Price:
