@@ -30,3 +30,4 @@ LOG_LEVEL = logging._nameToLevel.get(os.getenv('LOG_LEVEL') or 'INFO' if IS_PROD
 
 
 NOBITEX_TOKEN = os.getenv('NOBITEX_TOKEN', default='')
+NOBITEX_LEVERAGE = int(os.getenv('NOBITEX_LEVERAGE', default='1'))

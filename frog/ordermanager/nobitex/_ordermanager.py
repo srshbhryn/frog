@@ -20,7 +20,7 @@ class Service(OrderManger):
     topic = b'nobitex'
 
     def __init__(self) -> None:
-        self._client = NobitexClient(config.NOBITEX_TOKEN, 'frog1.0')
+        self._client = NobitexClient(config.NOBITEX_TOKEN, 'frog1.1')
         self._orders: dict[OrderId, Order] = {}
         self._mutex = threading.Lock()
 
@@ -71,6 +71,7 @@ class Service(OrderManger):
             'srcCurrency': str(order.pair.base),
             'dstCurrency': str(order.pair.quote),
             'amount': str(order.amount),
+            'leverage': config.NOBITEX_LEVERAGE,
         }
         if order.price:
             data['price'] = str(order.price)
@@ -82,13 +83,13 @@ class Service(OrderManger):
             placed_order = self._client.request(
                 typ=self._client.Type.private,
                 method=self._client.Method.post,
-                url='/market/orders/add',
+                url='/margin/orders/add',
                 data=data,
             )['order']
             self._orders[placed_order['id']] = order
             return placed_order['id']
         except:
-            logging.exception('Error in fetching "/market/orders/list"')
+            logging.exception('Error in fetching "/margin/orders/list"')
             raise
         finally:
             self._mutex.release()
