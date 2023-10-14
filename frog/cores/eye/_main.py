@@ -291,18 +291,23 @@ def main() -> None:
 
         if isinstance(event, ShouldDo):
             event.do(context)
-        elif context.state == State.NO_OPEN_ORDER and event.topic in (
+            continue
+
+        if context.state == State.NO_OPEN_ORDER and event.topic in (
             topics.LONG_LONG_ORDERBOOK,
             topics.LONG_SHORT_ORDERBOOK,
             topics.SHORT_LONG_ORDERBOOK,
             topics.SHORT_SHORT_ORDERBOOK,
         ):
             CheckResidual()(context)
-        elif context.state == State.OPEN_ORDER:
+            continue
+
+        if context.state == State.OPEN_ORDER:
             CheckIfOrdersAreOpen()(context)
-        else:
-            logging.error(
-                'Unhandled "(state, event)"  pair: %s %s',
-                event,
-                context.state,
-            )
+            continue
+
+        logging.error(
+            'Unhandled "(state, event)"  pair: %s %s',
+            event,
+            context.state,
+        )

@@ -22,15 +22,14 @@ class Event:
     data: bytes
 
 
-reminder_topic = Topic(b'REMINDER')
+REMINDER_TOPIC = Topic(b'REMINDER')
 
 
 class Reminder(Event):
-    topic = reminder_topic
+    topic = REMINDER_TOPIC
 
 
 class Listener:
-    _reminder_topic = Topic(b'REMINDER')
 
     def __init__(self, topics: list[Topic]) -> None:
         self.topics = topics
@@ -63,7 +62,7 @@ class Listener:
             except asyncio.CancelledError:
                 return
             else:
-                self.queue.put([self._reminder_topic, pickle.dumps(reminder)])
+                self.queue.put([REMINDER_TOPIC, pickle.dumps(reminder)])
 
         self.reminders.append(asyncio.create_task(task()))
 
@@ -74,8 +73,6 @@ class Listener:
 
     def _subscribe(self) -> None:
         for topic in self.topics:
-            if topic == self._reminder_topic:
-                continue
             self.socket.subscribe(topic)
         logging.debug('subscribed')
 
