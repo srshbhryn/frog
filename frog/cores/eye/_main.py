@@ -10,7 +10,7 @@ from frog.ordermanager.nobitex import rpc as nobitex_rpc
 from frog.ordermanager.types import OrderStatus
 from frog.square.rpc import RpcClient
 from frog.tradestore import rpc as tradestore_rpc
-from frog.types import Amount, Asset, Pair, Price, Side
+from frog.types import Amount, Asset, Pair, Price, Side, Regression
 from frog.utils import listener
 from frog.utils.shortcuts import now
 
@@ -62,13 +62,34 @@ class Client(RpcClient):
     nobitex_client = nobitex_rpc.Service()
 
 
+class ActionQueue:
+    def __init__(self) -> None:
+        self._actions: list[Action] = []
+
+    def add_action(self, action: Action) -> None:
+        self._actions.append(action)
+
+    def pop_action(self) -> Action:
+        return self._actions.pop(0)
+
+    def has_action(self) -> bool:
+        return len(self._actions) != 0
+
+
 @dataclasses.dataclass(slots=True)
 class Context:
     state: State
     is_long_asset_position_long = False
-    client = Client()
     open_order_ids: dict[tuple[Pair, Side], int]
     open_order_deadlines: dict[tuple[Pair, Side], datetime.datetime]
+    external_events_topics: Topics
+
+    # helpers
+    action_queue: ActionQueue
+    event_listener: listener.Listener
+    client: Client
+
+    ####  config
     regression_len = 120
     trade_threshold = Decimal('0.002')
     pricing_factor = Decimal('1.0')
@@ -77,9 +98,6 @@ class Context:
     short_asset = Asset.ETH
     quote_asset = Asset.RLS
     base_trade_value = Amount('500_000_0')
-    external_events_topics: Topics
-    action_queue: list[Action]
-    event_listener: listener.Listener
 
     @property
     def analyst(self) -> analyst_rpc.Service:
@@ -103,7 +121,8 @@ class Context:
             listener.Topic(f'order_{self.short_pair}_LONG'.encode()),
             listener.Topic(f'order_{self.short_pair}_SHORT'.encode()),
         )
-        self.action_queue = []
+        self.client = Client()
+        self.action_queue = ActionQueue()
         self.event_listener = listener.Listener(
             [
                 self.external_events_topics.LONG_LONG_ORDERBOOK,
@@ -112,15 +131,6 @@ class Context:
                 self.external_events_topics.SHORT_SHORT_ORDERBOOK,
             ],
         )
-
-    def add_action(self, action: Action) -> None:
-        self.action_queue.append(action)
-
-    def pop_action(self) -> Action:
-        return self.action_queue.pop(0)
-
-    def has_action(self) -> bool:
-        return len(self.action_queue) != 0
 
     @property
     def long_pair(self) -> Pair:
@@ -198,7 +208,7 @@ class CheckIfOrdersAreOpen(Action):
             logging.exception('err in CheckIfOrdersAreFilled')
         else:
             if not context.open_order_ids:
-                context.add_action(ChangeState(State.NO_OPEN_ORDER))
+                context.action_queue.add_action(ChangeState(State.NO_OPEN_ORDER))
 
             else:
                 for action in (
@@ -206,7 +216,7 @@ class CheckIfOrdersAreOpen(Action):
                     CancelExpiredOrders(),
                     CheckIfOrdersAreOpen(),
                 ):
-                    context.add_action(action)
+                    context.action_queue.add_action(action)
 
 
 class CheckResidual(Action):
@@ -221,7 +231,7 @@ class CheckResidual(Action):
             logging.exception('PriceIsNotAvailable')
             return
 
-        regression = context.analyst.get_regression(
+        regression: Regression = context.analyst.get_regression(
             context.long_pair,
             context.short_pair,
             start_time,
@@ -271,7 +281,7 @@ class CheckResidual(Action):
             actions = []
 
         for action in actions:
-            context.add_action(action)
+            context.action_queue.add_action(action)
 
 
 def main() -> None:
@@ -280,12 +290,12 @@ def main() -> None:
 
     while True:
         logging.debug('main loop')
-        if context.has_action():
+        if context.action_queue.has_action():
             logging.debug('has action')
-            context.pop_action()(context)
+            context.action_queue.pop_action()(context)
             continue
 
-        logging.debug('waiting for event')
+        logging.debug('waiting for event'),
         event = context.event_listener.wait()
         logging.debug('received')
 
