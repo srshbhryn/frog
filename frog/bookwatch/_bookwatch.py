@@ -3,7 +3,7 @@ import logging
 import requests
 
 from frog import config
-from frog.types import Asset, Pair, PriceAmountPair, Side
+from frog.types import Asset, Pair, Side
 
 from ._helpers import translate_asset_name
 

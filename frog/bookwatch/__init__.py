@@ -1,1 +1,1 @@
-from ._bookwatch import BookWatch
+from ._main import main
