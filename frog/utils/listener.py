@@ -55,8 +55,8 @@ class Listener:
 
         asyncio.run(main())
 
-    def add_reminder(self, timeout: timedelta, reminder: Reminder) -> None:
-        async def task() -> None:
+    def add_reminder(self, timeout: timedelta, reminder: Reminder) -> asyncio.Task[None]:
+        async def _task_fun() -> None:
             try:
                 await asyncio.sleep(timeout.total_seconds())
             except asyncio.CancelledError:
@@ -64,7 +64,9 @@ class Listener:
             else:
                 self.queue.put([REMINDER_TOPIC, pickle.dumps(reminder)])
 
-        self.reminders.append(asyncio.create_task(task()))
+        task = asyncio.create_task(_task_fun())
+        self.reminders.append(task)
+        return task
 
     def cancel_all_reminders(self) -> None:
         for task in self.reminders:

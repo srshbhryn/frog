@@ -1,3 +1,4 @@
+import asyncio
 import dataclasses
 import datetime
 import enum
@@ -6,6 +7,7 @@ import time
 from decimal import Decimal
 
 from frog.analyst import rpc as analyst_rpc
+from frog.cores.eye._main import Context
 from frog.ordermanager.nobitex import rpc as nobitex_rpc
 from frog.ordermanager.types import OrderStatus
 from frog.square.rpc import RpcClient
@@ -15,9 +17,16 @@ from frog.utils import listener
 from frog.utils.shortcuts import now
 
 
-class State(enum.Enum):
-    NO_OPEN_ORDER = 0
+class AssetState(enum.Enum):
+    NO_ORDER = 0
     OPEN_ORDER = 1
+
+
+class State(enum.Enum):
+    NN = (AssetState.NO_ORDER, AssetState.NO_ORDER)
+    LN = (AssetState.OPEN_ORDER, AssetState.NO_ORDER)
+    NS = (AssetState.NO_ORDER, AssetState.OPEN_ORDER)
+    LS = (AssetState.OPEN_ORDER, AssetState.OPEN_ORDER)
 
 
 class Action:
@@ -41,7 +50,7 @@ class ShouldDo(listener.Reminder):
         actions: list[Action],
     ) -> None:
         self.actions = actions
-        context.event_listener.add_reminder(timeout, self)
+        self.task = context.event_listener.add_reminder(timeout, self)
 
     def do(self, context: 'Context') -> None:
         for action in self.actions:
@@ -50,17 +59,76 @@ class ShouldDo(listener.Reminder):
 
 @dataclasses.dataclass(slots=True)
 class Topics:
-    LONG_LONG_ORDERBOOK: listener.Topic
-    LONG_SHORT_ORDERBOOK: listener.Topic
-    SHORT_LONG_ORDERBOOK: listener.Topic
-    SHORT_SHORT_ORDERBOOK: listener.Topic
-
+    LONG_ASSET_ORDERBOOK: listener.Topic
+    SHORT_ASSET_ORDERBOOK: listener.Topic
+    LONG_ASSET_FILL: listener.Topic
+    SHORT_ASSET_FILL: listener.Topic
 
 class Client(RpcClient):
     analyst = analyst_rpc.Service()
     trade_store = tradestore_rpc.Service()
     nobitex_client = nobitex_rpc.Service()
 
+
+class CancelOrder(Action):
+    def __init__(self, order: 'Order') -> None:
+        self.order = order
+        super().__init__()
+
+    def __call__(self, context: Context) -> None:
+        # call rpc
+        if self.order.pair == context.long_pair:
+            # context.state.value[0] =
+            pass
+
+
+@dataclasses.dataclass(slots=True)
+class Order:
+    context: Context
+    pk: int
+    pair: Pair
+    side: Side
+    amount: Amount
+    price: Price
+    filled_amount: Amount
+    cancellation_task: asyncio.Task[None]
+
+    @classmethod
+    def new(
+        cls,
+        context: Context,
+        listener: listener.Listener,
+        pair: Pair,
+        side: Side,
+        amount: Amount,
+        price: Price,
+    ) -> 'Order':
+        order = cls(
+            context.nobitex_client.place_order(
+                nobitex_rpc.Order(
+                    amount=amount,
+                    pair=pair,
+                    side=side,
+                    price=price,
+                ),
+            ),
+            pair,
+            side,
+            amount,
+            price,
+            Decimal('0'),
+            None,
+        )
+        order.cancellation_task = listener.add_reminder(
+            context.wait_period,
+            CancelOrder(order),
+        )
+
+    def update_fill(self, amount: Amount):
+        self.filled_amount += amount
+        if self.filled_amount == self.amount:
+            self.cancellation_task.cancel()
+            self.context.set_pair_order_to_close(self.pair)
 
 class ActionQueue:
     def __init__(self) -> None:
@@ -79,9 +147,7 @@ class ActionQueue:
 @dataclasses.dataclass(slots=True)
 class Context:
     state: State
-    is_long_asset_position_long = False
-    open_order_ids: dict[tuple[Pair, Side], int]
-    open_order_deadlines: dict[tuple[Pair, Side], datetime.datetime]
+
     external_events_topics: Topics
 
     # helpers
@@ -113,8 +179,6 @@ class Context:
 
     def __init__(self) -> None:
         self.state = State.NO_OPEN_ORDER
-        self.open_order_ids = {}
-        self.open_order_deadlines = {}
         self.external_events_topics = Topics(
             listener.Topic(f'order_{self.long_pair}_LONG'.encode()),
             listener.Topic(f'order_{self.long_pair}_SHORT'.encode()),
@@ -140,6 +204,35 @@ class Context:
     def short_pair(self) -> Pair:
         return Pair(self.short_asset, self.quote_asset)
 
+    def set_pair_order_to_close(self, pair: Pair) -> None:
+        if pair == self.long_pair:
+            if self.state == State.LN:
+                self.state = State.NN
+
+            elif self.state == State.LS:
+                self.state = State.NS
+
+        elif pair == self.long_pair:
+            if self.state == State.NS:
+                self.state = State.NN
+
+            elif self.state == State.LS:
+                self.state = State.LN
+
+    def set_pair_order_to_open(self, pair: Pair) -> None:
+        if pair == self.long_pair:
+            if self.state == State.NN:
+                self.state = State.LN
+
+            elif self.state == State.NS:
+                self.state = State.LS
+
+        elif pair == self.long_pair:
+            if self.state == State.NN:
+                self.state = State.NS
+
+            elif self.state == State.LN:
+                self.state = State.LS
 
 class SleepForAWhile(Action):
     def __init__(self, a_while: int) -> None:
@@ -303,7 +396,7 @@ def main() -> None:
             event.do(context)
             continue
 
-        if context.state == State.NO_OPEN_ORDER and event.topic in (
+        if context.state == State.NN and event.topic in (
             topics.LONG_LONG_ORDERBOOK,
             topics.LONG_SHORT_ORDERBOOK,
             topics.SHORT_LONG_ORDERBOOK,
@@ -312,7 +405,7 @@ def main() -> None:
             CheckResidual()(context)
             continue
 
-        if context.state == State.OPEN_ORDER:
+        if context.state == State.NN:
             CheckIfOrdersAreOpen()(context)
             continue
 
