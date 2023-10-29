@@ -1,52 +1,38 @@
-from typing import Callable, Optional
+from typing import Any
 
 import msgpack
 
 
 class _EncoderStore:
-    next_code = 1
-    type_to_code_map: dict[type, int] = {}
+    _ext_type_code = 1
     code_to_type_map: dict[int, type] = {}
-    code_to_encoder_map: dict[int, Callable] = {}
-    code_to_decoder_map: dict[int, Callable] = {}
 
-    @staticmethod
-    def get_next_code_for(tp: type) -> int:
-        code = _EncoderStore.next_code
-        _EncoderStore.next_code += 1
-        _EncoderStore.type_to_code_map[tp] = code
-        _EncoderStore.code_to_type_map[code] = tp
-        return code
-
-    @staticmethod
-    def encoder(obj: any) -> bytes:
-        code = _EncoderStore.type_to_code_map.get(type(obj))
-        if code is None:
+    @classmethod
+    def encoder(cls, obj: Any) -> bytes:
+        code = hash(type(obj).__name__)
+        tp = cls.code_to_type_map.get(code)
+        if not type(obj) == tp:
             msg = f'Unknown type: {obj!r}'
             raise TypeError(msg)
-        return msgpack.ExtType(
-            code,
-            _EncoderStore.code_to_encoder_map[code](obj),
-        )
+        return msgpack.ExtType(cls._ext_type_code, dumps((code, obj.encode())))
 
-    @staticmethod
-    def decoder(code: int, data: bytes) -> any:
-        decoder = _EncoderStore.code_to_decoder_map.get(code)
-        if decoder is None:
-            return msgpack.ExtType(code, data)
-        return decoder(data)
+    @classmethod
+    def decoder(cls, _ext_type_code: int, data: bytes) -> Any:
+        if not _ext_type_code == cls._ext_type_code:
+            return msgpack.ExtType(_ext_type_code, data)
+        code, encoded = loads(data)
+        tp = cls.code_to_type_map.get(code)
+        if not tp and not hash(tp.__name__) == code:
+            msg = f'Unknown type with code: {code}'
+            raise TypeError(msg)
+
+        return tp.decode(encoded)
 
 
-def register(tp: type, encoder: callable, decoder: Optional[callable] = None) -> None:
-    code = _EncoderStore.type_to_code_map.get(tp) or _EncoderStore.get_next_code_for(tp)
-    _EncoderStore.code_to_encoder_map[code] = encoder
-    if decoder is None:
-
-        def decoder(encoded: bytes) -> tp:
-            return tp(**loads(encoded))
-
-    _EncoderStore.code_to_decoder_map[code] = decoder
-
+def register(tp: type) -> type:
+    code = hash(tp.__name__)
+    _EncoderStore.code_to_type_map[code] = tp
+    return tp
 
 def loads(data: bytes) -> any:
     return msgpack.loads(
