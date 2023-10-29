@@ -25,8 +25,14 @@ class _EncoderStore:
         if not tp and not hash(tp.__name__) == code:
             msg = f'Unknown type with code: {code}'
             raise TypeError(msg)
+        if not hasattr(tp, 'decode'):
 
-        return tp.decode(encoded)
+            def decode(encoded):
+                return tp(*encoded)
+
+        else:
+            decode = tp.decode
+        return decode(encoded)
 
 
 def register(tp: type) -> type:
