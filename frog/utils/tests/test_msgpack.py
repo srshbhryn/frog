@@ -1,5 +1,6 @@
 from typing import Any
 from frog.utils import msgpack
+from datetime import datetime
 
 
 def test_1():
@@ -61,4 +62,17 @@ def test_enum():
         b = 545
 
     a = D(123)
+    assert a == msgpack.loads(msgpack.dumps(a))
+
+
+def test_external_type():
+    def datetime_encoder(obj: datetime) -> str:
+        return obj.isoformat()
+
+    def datetime_decoder(data: str) -> datetime:
+        return datetime.fromisoformat(data)
+
+    msgpack.register(datetime, datetime_encoder, datetime_decoder)
+
+    a = datetime.now()
     assert a == msgpack.loads(msgpack.dumps(a))

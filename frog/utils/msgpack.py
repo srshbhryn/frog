@@ -1,6 +1,6 @@
 import dataclasses
 import enum
-from typing import Any
+from typing import Any, Optional, Callable
 
 import msgpack
 
@@ -8,6 +8,8 @@ import msgpack
 class _EncoderStore:
     _ext_type_code = 1
     code_to_type_map: dict[int, type] = {}
+    code_to_encoder_map: dict[int, Callable] = {}
+    code_to_decoder_map: dict[int, Callable] = {}
 
     @classmethod
     def encoder(cls, obj: Any) -> bytes:
@@ -16,7 +18,8 @@ class _EncoderStore:
         if not type(obj) == tp:
             msg = f'Unknown type: {obj!r}'
             raise TypeError(msg)
-        return msgpack.ExtType(cls._ext_type_code, dumps((code, obj.encode())))
+        encode = getattr(tp, 'encode', _EncoderStore.code_to_encoder_map.get(code))
+        return msgpack.ExtType(cls._ext_type_code, dumps((code, encode(obj))))
 
     @classmethod
     def decoder(cls, _ext_type_code: int, data: bytes) -> Any:
@@ -27,18 +30,28 @@ class _EncoderStore:
         if not tp and not hash(tp.__name__) == code:
             msg = f'Unknown type with code: {code}'
             raise TypeError(msg)
-        if not hasattr(tp, 'decode'):
 
-            def decode(encoded):
+        decoder = getattr(tp, 'decode', _EncoderStore.code_to_decoder_map.get(code))
+        if not decoder:
+
+            def decoder(encoded):
                 return tp(*encoded)
 
-        else:
-            decode = tp.decode
-        return decode(encoded)
+        return decoder(encoded)
 
 
-def register(tp: type) -> type:
+def register(
+    tp: type,
+    encoder: Optional[Callable] = None,
+    decoder: Optional[Callable] = None,
+) -> type:
     code = hash(tp.__name__)
+    if encoder:
+        _EncoderStore.code_to_encoder_map[code] = encoder
+
+    if decoder:
+        _EncoderStore.code_to_decoder_map[code] = decoder
+
     _EncoderStore.code_to_type_map[code] = tp
     return tp
 
