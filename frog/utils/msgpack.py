@@ -1,3 +1,5 @@
+import dataclasses
+import enum
 from typing import Any
 
 import msgpack
@@ -39,6 +41,23 @@ def register(tp: type) -> type:
     code = hash(tp.__name__)
     _EncoderStore.code_to_type_map[code] = tp
     return tp
+
+
+def dataclass(tp):
+    tp = register(dataclasses.dataclass(slots=True)(tp))
+    print(tp.__dict__['a'])
+    tp.encode = lambda i: tuple(getattr(i, s) for s in tp.__slots__)
+    return tp
+    # return (register(tp))
+
+
+class Enum(enum.Enum):
+    def __init_subclass__(cls):
+        _ = register(cls)
+
+    def encode(self):
+        return (self.value,)
+
 
 def loads(data: bytes) -> any:
     return msgpack.loads(
