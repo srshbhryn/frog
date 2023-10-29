@@ -1,7 +1,5 @@
-import dataclasses
-from datetime import datetime, timedelta
+from datetime import datetime
 import decimal
-import enum
 from decimal import Decimal
 
 from typing_extensions import TypeAlias
@@ -11,7 +9,7 @@ from frog.utils import msgpack
 _Decimal: TypeAlias = Decimal | int
 
 
-@dataclasses.dataclass(slots=True)
+@msgpack.dataclass
 class OrderBook:
     short_bid_price: Decimal
     short_ask_price: Decimal
@@ -20,7 +18,7 @@ class OrderBook:
 
 
 
-class Asset(enum.Enum):
+class Asset(msgpack.Enum):
     RLS = 'rls'
     USDT = 'usdt'
     BTC = 'btc'
@@ -31,20 +29,8 @@ class Asset(enum.Enum):
     def  __str__(self) -> str:
         return self.value
 
-    @staticmethod
-    def encoder(instance: 'Asset') -> bytes:
-        return instance.value.encode()
 
-    @staticmethod
-    def decoder(data: bytes) -> 'Asset':
-        value = data.decode()
-        for asset in Asset:
-            if value == asset.value:
-                return asset
-        raise Exception('Cant decode asset.')
-
-
-@dataclasses.dataclass(slots=True)
+@msgpack.dataclass
 class Pair:
     base: Asset
     quote: Asset
@@ -55,43 +41,19 @@ class Pair:
     def  __hash__(self) -> int:
         return hash(self.__str__())
 
-    @staticmethod
-    def encoder(instance: 'Pair') -> bytes:
-        return msgpack.dumps(
-            {
-                'base': instance.base,
-                'quote': instance.quote,
-            },
-        )
 
-
-class Side(enum.Enum):
+class Side(msgpack.Enum):
     SHORT = b'1'
     LONG = b'2'
 
     def __str__(self) -> str:
         return self.name
 
-    @staticmethod
-    def encoder(instance: 'Side') -> bytes:
-        return instance.value
-
-    @staticmethod
-    def decoder(data: bytes) -> 'Side':
-        value = data
-        for asset in Side:
-            if value == asset.value:
-                return asset
-        raise Exception('Cant decode side.')
-
-
-msgpack.register(Side, Side.encoder, Side.decoder)
 
 class Amount(decimal.Decimal):
-    pass
-
     def __repr__(self) -> str:
         return super().__repr__().replace('Decimal', 'Amount')
+
 
 class Price(decimal.Decimal):
     def __add__(self, __value: _Decimal) -> 'Price':
@@ -115,45 +77,18 @@ class Value(decimal.Decimal):
     pass
 
 
-@dataclasses.dataclass(slots=True)
+@msgpack.dataclass
 class PriceAmountPair:
     price: Price
     amount: Amount
 
-    @staticmethod
-    def encoder(instance: 'PriceAmountPair') -> bytes:
-        return msgpack.dumps(
-            {
-                'price': instance.price,
-                'amount': instance.amount,
-            },
-        )
 
-
-@dataclasses.dataclass(slots=True)
+@msgpack.dataclass
 class Regression:
     alpha: Decimal
     beta: Decimal
     long_price_normalizer: Price
     short_price_normalizer: Price
-
-    @staticmethod
-    def encoder(instance: 'Regression') -> bytes:
-        return msgpack.dumps(
-            {
-                'alpha': instance.alpha,
-                'beta': instance.beta,
-                'long_price_normalizer': instance.long_price_normalizer,
-                'short_price_normalizer': instance.short_price_normalizer,
-            },
-        )
-
-
-msgpack.register(Regression, Regression.encoder)
-msgpack.register(PriceAmountPair, PriceAmountPair.encoder)
-msgpack.register(Pair, Pair.encoder)
-msgpack.register(Asset, Asset.encoder, Asset.decoder)
-
 
 def datetime_encoder(obj: datetime) -> bytes:
     return obj.isoformat().encode()
