@@ -1,3 +1,4 @@
+import dataclasses
 from datetime import datetime
 import decimal
 from decimal import Decimal
@@ -10,6 +11,7 @@ _Decimal: TypeAlias = Decimal | int
 
 
 @msgpack.dataclass
+@dataclasses.dataclass(slots=True)
 class OrderBook:
     short_bid_price: Decimal
     short_ask_price: Decimal
@@ -31,6 +33,7 @@ class Asset(msgpack.Enum):
 
 
 @msgpack.dataclass
+@dataclasses.dataclass(slots=True)
 class Pair:
     base: Asset
     quote: Asset
@@ -78,12 +81,14 @@ class Value(decimal.Decimal):
 
 
 @msgpack.dataclass
+@dataclasses.dataclass(slots=True)
 class PriceAmountPair:
     price: Price
     amount: Amount
 
 
 @msgpack.dataclass
+@dataclasses.dataclass(slots=True)
 class Regression:
     alpha: Decimal
     beta: Decimal
