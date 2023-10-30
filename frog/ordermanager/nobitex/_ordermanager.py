@@ -31,7 +31,7 @@ class Service(OrderManger):
                 try:
                     min_oi = min(self._orders.keys())
                 except Exception:
-                    min_oi = 0
+                    min_oi = OrderId(0)
 
                 orders = self._client.request(
                     typ=self._client.Type.private,
