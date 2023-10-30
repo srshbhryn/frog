@@ -1,22 +1,23 @@
 import asyncio
-import logging
-import pickle
-from queue import Queue
-from dataclasses import dataclass
+import dataclasses
 from datetime import timedelta
+import logging
+from queue import Queue
 from threading import Thread
 
 import zmq
 import zmq.asyncio as async_zmq
 
 from frog import config
+from frog.utils import msgpack
 
 
 class Topic(bytes):
     pass
 
 
-@dataclass(slots=True)
+@msgpack.dataclass
+@dataclasses.dataclass(slots=True)
 class Event:
     topic: Topic
     data: bytes
@@ -33,7 +34,7 @@ class Listener:
 
     def __init__(self, topics: list[Topic]) -> None:
         self.topics = topics
-        self.queue = Queue()
+        self.queue: Queue = Queue()
         self.reminders: list[asyncio.Task[None]] = []
         self.socket = async_zmq.Context().socket(zmq.SUB)
         self.socket.connect(f'tcp://{config.HIGHWAY_HOST}:{config.HIGHWAY_XPUB_PORT}')
@@ -45,7 +46,7 @@ class Listener:
     def wait(self) -> Event:
         topic, data = self.queue.get()
         logging.debug('received event %s %s', topic, data)
-        return Event(Topic(topic), data)
+        return Event(Topic(topic), msgpack.loads(data))
 
     def _background_fun(self) -> None:
         async def main() -> None:
@@ -62,7 +63,7 @@ class Listener:
             except asyncio.CancelledError:
                 return
             else:
-                self.queue.put([REMINDER_TOPIC, pickle.dumps(reminder)])
+                self.queue.put([REMINDER_TOPIC, msgpack.dumps(reminder)])
 
         task = asyncio.create_task(_task_fun())
         self.reminders.append(task)
