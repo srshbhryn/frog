@@ -12,13 +12,13 @@ class _EncoderStore:
     code_to_decoder_map: dict[int, Callable] = {}
 
     @classmethod
-    def encoder(cls, obj: Any) -> bytes:
+    def encoder(cls, obj: Any) -> bytes | msgpack.ExtType:
         code = hash(type(obj).__name__)
         tp = cls.code_to_type_map.get(code)
         if not type(obj) == tp:
             msg = f'Unknown type: {obj!r}'
             raise TypeError(msg)
-        encode = getattr(tp, 'encode', _EncoderStore.code_to_encoder_map.get(code))
+        encode = getattr(tp, 'encode', _EncoderStore.code_to_encoder_map[code])
         return msgpack.ExtType(cls._ext_type_code, dumps((code, encode(obj))))
 
     @classmethod
@@ -27,7 +27,7 @@ class _EncoderStore:
             return msgpack.ExtType(_ext_type_code, data)
         code, encoded = loads(data)
         tp = cls.code_to_type_map.get(code)
-        if not tp and not hash(tp.__name__) == code:
+        if not tp is None and not hash(tp.__name__) == code:
             msg = f'Unknown type with code: {code}'
             raise TypeError(msg)
 
@@ -72,7 +72,7 @@ class Enum(enum.Enum):
         return (self.value,)
 
 
-def loads(data: bytes) -> any:
+def loads(data: bytes) -> Any:
     return msgpack.loads(
         data,
         ext_hook=_EncoderStore.decoder,
@@ -81,5 +81,5 @@ def loads(data: bytes) -> any:
     )
 
 
-def dumps(obj: any) -> bytes:
+def dumps(obj: Any) -> bytes:
     return msgpack.dumps(obj, default=_EncoderStore.encoder, use_bin_type=False)
