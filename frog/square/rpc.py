@@ -26,7 +26,7 @@ class RpcCode(enum.Enum):
         for c in cls:
             if c.value == value:
                 return c
-        return None
+        raise ValueError(f'Unexpected value: {value!r}')
 
 
 class RpcError(Exception):
@@ -45,7 +45,7 @@ class RpcService:
     Err = RpcError
 
     @classmethod
-    def register(cls, method: callable) -> None:
+    def register(cls, method: typing.Callable) -> typing.Callable:
         cls.rpc_methods[method.__name__] = method
         return method
 
@@ -103,13 +103,13 @@ class RpcService:
             )
 
     def init_client(self, requests_queue: Queue) -> None:
-        self.response_queue = Queue(maxsize=128)
-        self.request_queue = requests_queue
+        self.response_queue: Queue = Queue(maxsize=128)
+        self.request_queue: Queue = requests_queue
         for name in self.__class__.rpc_methods:
             setattr(self, name, self._request(name))
 
-    def _request(self, name: str) -> callable:
-        def wrapped(*args, **kwargs) -> callable:
+    def _request(self, name: str) -> typing.Callable:
+        def wrapped(*args, **kwargs) -> typing.Callable:
             args_kwargs_b = msgpack.dumps({'args': args, 'kwargs': kwargs})
             self.request_queue.put((self.topic, name.encode(), args_kwargs_b))
             code, return_value = self.response_queue.get()
@@ -125,7 +125,7 @@ class RpcClient:
         self.key = uuid.uuid4().hex[:16].encode()  # Client identity
 
         topic_to_response_queues_map: dict[bytes, Queue] = {}
-        requests_queue = Queue(maxsize=128)
+        requests_queue: Queue = Queue(maxsize=128)
 
         for service in (
             attr
