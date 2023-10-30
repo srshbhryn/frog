@@ -1,6 +1,6 @@
 import dataclasses
 import enum
-from typing import Any, Optional, Callable
+from typing import Any, Optional, Callable, TYPE_CHECKING
 
 import msgpack
 
@@ -15,27 +15,26 @@ class _EncoderStore:
     def encoder(cls, obj: Any) -> bytes | msgpack.ExtType:
         code = hash(type(obj).__name__)
         tp = cls.code_to_type_map.get(code)
-        if not type(obj) == tp:
+        if type(obj) != tp:
             msg = f'Unknown type: {obj!r}'
             raise TypeError(msg)
-        encode = getattr(tp, 'encode', _EncoderStore.code_to_encoder_map[code])
+        encode = getattr(tp, 'encode', None) or _EncoderStore.code_to_encoder_map[code]
         return msgpack.ExtType(cls._ext_type_code, dumps((code, encode(obj))))
 
     @classmethod
     def decoder(cls, _ext_type_code: int, data: bytes) -> Any:
-        if not _ext_type_code == cls._ext_type_code:
+        if _ext_type_code != cls._ext_type_code:
             return msgpack.ExtType(_ext_type_code, data)
         code, encoded = loads(data)
         tp = cls.code_to_type_map.get(code)
-        if not tp is None and not hash(tp.__name__) == code:
+        if tp is None or hash(tp.__name__) != code:
             msg = f'Unknown type with code: {code}'
             raise TypeError(msg)
 
-        decoder = getattr(tp, 'decode', _EncoderStore.code_to_decoder_map.get(code))
-        if not decoder:
+        decoder = getattr(tp, 'decode', None) or _EncoderStore.code_to_decoder_map.get(code)
 
-            def decoder(encoded):
-                return tp(*encoded)
+        if decoder is None:
+            return tp(*encoded)
 
         return decoder(encoded)
 
@@ -56,13 +55,15 @@ def register(
     return tp
 
 
-def dataclass(tp):
-    tp = register(dataclasses.dataclass(slots=True)(tp))
-    print(tp.__dict__['a'])
-    tp.encode = lambda i: tuple(getattr(i, s) for s in tp.__slots__)
-    return tp
-    # return (register(tp))
+def dataclass(tp: type) -> type:
+    _tp = register(tp)
+    if TYPE_CHECKING:
+        assert dataclasses.is_dataclass(_tp)
+        assert hasattr(_tp, '__slots__')
 
+    setattr(_tp, 'encode', lambda i: tuple(getattr(i, s) for s in _tp.__slots__))
+
+    return _tp
 
 class Enum(enum.Enum):
     def __init_subclass__(cls):

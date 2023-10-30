@@ -1,6 +1,8 @@
-from typing import Any
-from frog.utils import msgpack
+import dataclasses
+from typing import Any, TYPE_CHECKING
 from datetime import datetime
+
+from frog.utils import msgpack
 
 
 def test_1():
@@ -17,7 +19,9 @@ def test_1():
         def decode(data: Any):
             return A(*data)
 
-        def __eq__(self, __value: 'A') -> bool:
+        def __eq__(self, __value: object) -> bool:
+            if not isinstance(__value, A):
+                raise NotImplementedError
             return self.alpha == __value.alpha and self.beta == __value.beta
 
     a = A(127, 32343)
@@ -35,7 +39,9 @@ def test_default_decoder():
         def encode(self):
             return (self.x, self.y)
 
-        def __eq__(self, __value: 'B') -> bool:
+        def __eq__(self, __value: object) -> bool:
+            if not isinstance(__value, B):
+                raise NotImplementedError
             return self.x == __value.x and self.y == __value.y
 
 
@@ -45,12 +51,15 @@ def test_default_decoder():
 
 def test_dataclass():
     @msgpack.dataclass
+    @dataclasses.dataclass(slots=True)
     class C:
         a: int
         b: int
 
-    def __eq__(self, __value: 'C') -> bool:
-        return self.a == __value.a and self.b == __value.b
+        def __eq__(self, __value: object) -> bool:
+            if not isinstance(__value, C):
+                raise NotImplementedError
+            return self.a == __value.a and self.b == __value.b
 
     a = C(127, 32343)
     assert a == msgpack.loads(msgpack.dumps(a))
