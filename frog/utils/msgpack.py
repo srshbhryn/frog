@@ -55,7 +55,7 @@ def register(
 
 
 
-def dataclass(tp: type) -> type:
+def dataclass(tp):
     register(tp)
     if TYPE_CHECKING:
         assert dataclasses.is_dataclass(tp)
