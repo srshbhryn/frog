@@ -49,16 +49,34 @@ class Side(msgpack.Enum):
         return self.name
 
 
-class Amount(Decimal):
+class Amount:
+    def __init__(self, value: Decimal | float | int | str) -> None:
+        if isinstance(value, Decimal):
+            self._value = value
+            return
+
+        if isinstance(value, (float, int)):
+            self._value = Decimal(str(value))
+            return
+
+        if isinstance(value, str):
+            self._value = Decimal(value)
+            return
+
+        raise NotImplementedError
+
+    def __add__(self, __value: 'Amount') -> 'Amount':
+        return Amount(self._value + __value._value)
+
     def __repr__(self) -> str:
-        return super().__repr__().replace('Decimal', 'Amount')
+        return self._value.__repr__().replace('Decimal', 'Amount')
 
     def __mul__(self, __value: Decimal | float | int) -> 'Amount':
         if isinstance(__value, (Decimal, int)):
-            return Amount(super().__mul__(__value))
+            return Amount(self._value.__mul__(__value))
 
         if isinstance(__value, float):
-            return Amount(super().__mul__(Decimal(str(__value))))
+            return Amount(self._value.__mul__(Decimal(str(__value))))
 
         raise NotImplementedError
 
@@ -66,76 +84,106 @@ class Amount(Decimal):
         self, __value: 'Price' | 'Value' | 'Amount' | Decimal | float | int
     ) -> Decimal | 'Amount' | 'Price' | 'Value':
         if isinstance(__value, (Decimal, int)):
-            return Amount(super().__truediv__(__value))
+            return Amount(self._value.__truediv__(__value))
 
         if isinstance(__value, float):
-            return Amount(super().__truediv__(Decimal(str(__value))))
+            return Amount(self._value.__truediv__(Decimal(str(__value))))
 
         if isinstance(__value, Price):
-            return Value(super().__truediv__(Decimal(__value)))
+            return Value(self._value.__truediv__(__value._value))
 
         if isinstance(__value, Value):
-            return Price(super().__truediv__(Value(__value)))
+            return Price(self._value.__truediv__((__value._value)))
 
         if isinstance(__value, Amount):
-            return super().__truediv__(Decimal(__value))
+            return self._value.__truediv__(__value._value)
 
         raise NotImplementedError
 
 
-class Price(Decimal):
+class Price:
+    def __init__(self, value: Decimal | float | int | str) -> None:
+        if isinstance(value, Decimal):
+            self._value = value
+            return
+
+        if isinstance(value, (float, int)):
+            self._value = Decimal(str(value))
+            return
+
+        if isinstance(value, str):
+            self._value = Decimal(value)
+            return
+
+        raise NotImplementedError
+
     def __mul__(self, __value: 'Value' | Decimal | float | int) -> 'Price' | Amount:
         if isinstance(__value, (Decimal, int)):
-            return Price(super().__mul__(__value))
+            return Price(self._value.__mul__(__value))
 
         if isinstance(__value, Value):
-            return Amount(super().__mul__(Decimal(__value)))
+            return Amount(self._value.__mul__(__value._value))
 
         if isinstance(__value, float):
-            return Price(super().__mul__(Decimal(str(__value))))
+            return Price(self._value.__mul__(Decimal(str(__value))))
 
         raise NotImplementedError
 
     def __truediv__(self, __value: 'Price' | Decimal | int | float) -> 'Price' | Decimal:
         if isinstance(__value, Price):
-            return super().__truediv__(Decimal(__value))
+            return self._value.__truediv__(__value._value)
 
         if isinstance(__value, (Decimal, int)):
-            return Price(super().__truediv__(__value))
+            return Price(self._value.__truediv__(__value))
 
         if isinstance(__value, float):
-            return Price(super().__truediv__(Decimal(str(__value))))
+            return Price(self._value.__truediv__(Decimal(str(__value))))
 
         raise NotImplementedError
 
 
-class Value(Decimal):
+class Value:
+    def __init__(self, value: Decimal | float | int | str) -> None:
+        if isinstance(value, Decimal):
+            self._value = value
+            return
+
+        if isinstance(value, (float, int)):
+            self._value = Decimal(str(value))
+            return
+
+        if isinstance(value, str):
+            self._value = Decimal(value)
+            return
+
+        raise NotImplementedError
+
     def __mul__(self, __value: Price | Decimal | float | int) -> 'Value' | Amount:
         if isinstance(__value, (Decimal, int)):
-            return Value(super().__mul__(__value))
+            return Value(self._value.__mul__(__value))
 
         if isinstance(__value, float):
-            return Value(super().__mul__(Decimal(str(__value))))
+            return Value(self._value.__mul__(Decimal(str(__value))))
 
         if isinstance(__value, Price):
-            return __value * self
+            return Amount(self._value.__mul__(__value._value))
 
         raise NotImplementedError
 
-    def __truediv__(self, __value: 'Value' | Decimal | float | int) -> Decimal:
+    def __truediv__(self, __value: 'Value' | Decimal | float | int) -> Decimal | 'Value':
         if isinstance(__value, (Decimal, int)):
-            return Value(super().__truediv__(__value))
+            return Value(self._value.__truediv__(__value))
 
         if isinstance(__value, float):
-            return Value(super().__truediv__(Decimal(str(__value))))
+            return Value(self._value.__truediv__(Decimal(str(__value))))
 
         if isinstance(__value, Value):
-            return super().__truediv__(Decimal(__value))
+            return self._value.__truediv__(__value._value)
 
         raise NotImplementedError
 
     def __repr__(self) -> str:
-        return super().__repr__().replace('Decimal', 'Value')
+        return self._value.__repr__().replace('Decimal', 'Value')
 
 
 @msgpack.dataclass
