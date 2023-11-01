@@ -6,6 +6,7 @@ from django.db import models
 from frog.square.rpc import RpcCode, RpcError, RpcService
 from frog.types import Pair, Price
 
+from django.db import models
 from ._django_setup import setup
 
 
@@ -19,6 +20,7 @@ class Service(RpcService):
     topic = b'prices'
 
     def __init__(self, *args, **kwargs) -> None:
+        self.trade_model: models.Model = None
         super().__init__(*args, **kwargs)
 
     def run_server(self) -> None:

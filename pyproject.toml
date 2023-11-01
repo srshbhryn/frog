@@ -25,6 +25,20 @@ disable = [
 
 ]
 
+[tool.pytype]
+keep_going = true
+platform = "linux"
+bind_decorated_methods = true
+overriding_renamed_parameter_count_checks = true
+use_enum_overlay = true
+use_fiddle_overlay = true
+precise_return = true
+protocols = true
+strict_import = true
+strict_parameter_checks = true
+strict_primitive_comparisons = true
+strict_undefined_checks = true
+
 
 [tool.ruff]
 

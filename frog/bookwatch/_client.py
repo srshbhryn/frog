@@ -10,7 +10,7 @@ from .types import Entry, Book
 from ._helpers import translate_asset_name
 
 
-def fetch_books() -> zip[tuple[Pair, Book]]:
+def fetch_books():
     try:
         response = requests.get(
             url='https://api.nobitex.ir/v2/orderbook/all',

@@ -1,4 +1,3 @@
-import asyncio
 import dataclasses
 import datetime
 import enum
@@ -7,9 +6,8 @@ import time
 from decimal import Decimal
 
 from frog.analyst import rpc as analyst_rpc
-from frog.cores.eye._main import Context
 from frog.ordermanager.nobitex import rpc as nobitex_rpc
-from frog.ordermanager.types import OrderStatus
+from frog.ordermanager.types import Fill, OrderId
 from frog.square.rpc import RpcClient
 from frog.tradestore import rpc as tradestore_rpc
 from frog.types import Amount, Asset, Pair, Price, Side, Regression
@@ -24,9 +22,9 @@ class AssetState(enum.Enum):
 
 class State(enum.Enum):
     NN = (AssetState.NO_ORDER, AssetState.NO_ORDER)
-    LN = (AssetState.OPEN_ORDER, AssetState.NO_ORDER)
-    NS = (AssetState.NO_ORDER, AssetState.OPEN_ORDER)
-    LS = (AssetState.OPEN_ORDER, AssetState.OPEN_ORDER)
+    YN = (AssetState.OPEN_ORDER, AssetState.NO_ORDER)
+    NY = (AssetState.NO_ORDER, AssetState.OPEN_ORDER)
+    YY = (AssetState.OPEN_ORDER, AssetState.OPEN_ORDER)
 
 
 class Action:
@@ -42,27 +40,13 @@ class ChangeState(Action):
         context.state = self._state
 
 
-class ShouldDo(listener.Reminder):
-    def __init__(
-        self,
-        context: 'Context',
-        timeout: datetime.timedelta,
-        actions: list[Action],
-    ) -> None:
-        self.actions = actions
-        self.task = context.event_listener.add_reminder(timeout, self)
-
-    def do(self, context: 'Context') -> None:
-        for action in self.actions:
-            action(context)
-
-
 @dataclasses.dataclass(slots=True)
 class Topics:
-    LONG_ASSET_ORDERBOOK: listener.Topic
-    SHORT_ASSET_ORDERBOOK: listener.Topic
-    LONG_ASSET_FILL: listener.Topic
-    SHORT_ASSET_FILL: listener.Topic
+    long_asset_orderbook: listener.Topic
+    short_asset_orderbook: listener.Topic
+    long_asset_fill: listener.Topic
+    short_asset_fill: listener.Topic
+
 
 class Client(RpcClient):
     analyst = analyst_rpc.Service()
@@ -73,62 +57,19 @@ class Client(RpcClient):
 class CancelOrder(Action):
     def __init__(self, order: 'Order') -> None:
         self.order = order
-        super().__init__()
 
-    def __call__(self, context: Context) -> None:
-        # call rpc
-        if self.order.pair == context.long_pair:
-            # context.state.value[0] =
-            pass
+    def __call__(self, context: 'Context') -> None:
+        raise NotImplementedError
 
 
 @dataclasses.dataclass(slots=True)
 class Order:
-    context: Context
-    pk: int
     pair: Pair
     side: Side
     amount: Amount
     price: Price
-    filled_amount: Amount
-    cancellation_task: asyncio.Task[None]
+    filled_amount: Amount = Amount('0')
 
-    @classmethod
-    def new(
-        cls,
-        context: Context,
-        listener: listener.Listener,
-        pair: Pair,
-        side: Side,
-        amount: Amount,
-        price: Price,
-    ) -> 'Order':
-        order = cls(
-            context.nobitex_client.place_order(
-                nobitex_rpc.Order(
-                    amount=amount,
-                    pair=pair,
-                    side=side,
-                    price=price,
-                ),
-            ),
-            pair,
-            side,
-            amount,
-            price,
-            Decimal('0'),
-            None,
-        )
-        order.cancellation_task = listener.add_reminder(
-            context.wait_period,
-            CancelOrder(order),
-        )
-
-    def update_fill(self, amount: Amount):
-        self.filled_amount += amount
-        if self.filled_amount == self.amount:
-            self.cancellation_task.cancel()
-            self.context.set_pair_order_to_close(self.pair)
 
 class ActionQueue:
     def __init__(self) -> None:
@@ -146,15 +87,17 @@ class ActionQueue:
 
 @dataclasses.dataclass(slots=True)
 class Context:
-    state: State
 
     external_events_topics: Topics
 
     # helpers
-    action_queue: ActionQueue
     event_listener: listener.Listener
-    client: Client
+    action_queue: ActionQueue = ActionQueue()
+    client: Client = Client()
 
+    # state
+    state: State = State.NN
+    order_id_to_order_map: dict[OrderId, Order] = {}
     ####  config
     regression_len = 120
     trade_threshold = Decimal('0.002')
@@ -178,21 +121,18 @@ class Context:
         return self.client.nobitex_client
 
     def __init__(self) -> None:
-        self.state = State.NO_OPEN_ORDER
         self.external_events_topics = Topics(
-            listener.Topic(f'order_{self.long_pair}_LONG'.encode()),
-            listener.Topic(f'order_{self.long_pair}_SHORT'.encode()),
-            listener.Topic(f'order_{self.short_pair}_LONG'.encode()),
-            listener.Topic(f'order_{self.short_pair}_SHORT'.encode()),
+            listener.Topic(f'order_{self.long_pair}'.encode()),
+            listener.Topic(f'order_{self.short_pair}'.encode()),
+            listener.Topic(f'fill_{self.long_pair}'.encode()),
+            listener.Topic(f'fill_{self.short_pair}'.encode()),
         )
-        self.client = Client()
-        self.action_queue = ActionQueue()
         self.event_listener = listener.Listener(
             [
-                self.external_events_topics.LONG_LONG_ORDERBOOK,
-                self.external_events_topics.LONG_SHORT_ORDERBOOK,
-                self.external_events_topics.SHORT_LONG_ORDERBOOK,
-                self.external_events_topics.SHORT_SHORT_ORDERBOOK,
+                self.external_events_topics.long_asset_orderbook,
+                self.external_events_topics.short_asset_orderbook,
+                self.external_events_topics.long_asset_fill,
+                self.external_events_topics.short_asset_fill,
             ],
         )
 
@@ -206,33 +146,33 @@ class Context:
 
     def set_pair_order_to_close(self, pair: Pair) -> None:
         if pair == self.long_pair:
-            if self.state == State.LN:
+            if self.state == State.YN:
                 self.state = State.NN
 
-            elif self.state == State.LS:
-                self.state = State.NS
+            elif self.state == State.YY:
+                self.state = State.NY
 
         elif pair == self.long_pair:
-            if self.state == State.NS:
+            if self.state == State.NY:
                 self.state = State.NN
 
-            elif self.state == State.LS:
-                self.state = State.LN
+            elif self.state == State.YY:
+                self.state = State.YN
 
     def set_pair_order_to_open(self, pair: Pair) -> None:
         if pair == self.long_pair:
             if self.state == State.NN:
-                self.state = State.LN
+                self.state = State.YN
 
-            elif self.state == State.NS:
-                self.state = State.LS
+            elif self.state == State.NY:
+                self.state = State.YY
 
         elif pair == self.long_pair:
             if self.state == State.NN:
-                self.state = State.NS
+                self.state = State.NY
 
-            elif self.state == State.LN:
-                self.state = State.LS
+            elif self.state == State.YN:
+                self.state = State.YY
 
 class SleepForAWhile(Action):
     def __init__(self, a_while: int) -> None:
@@ -258,58 +198,15 @@ class PlaceOrder(Action):
                 pair=self.pair,
                 side=self.side,
                 price=self.price,
-            ),
-        )
-        context.open_order_ids[(self.pair, self.side)] = order_id
-        context.open_order_deadlines[
-            (
-                self.pair,
-                self.side,
             )
-        ] = (
-            now() + context.wait_period
         )
-
-
-class CancelExpiredOrders(Action):
-    def __call__(self, context: Context) -> None:
-        orders_keys = list(context.open_order_ids.keys())
-        for orders_key in orders_keys:
-            if now() > context.open_order_deadlines[orders_key]:
-                try:
-                    context.nobitex_client.cancel_order(context.open_order_ids[orders_key])
-                    context.open_order_ids.pop(orders_key, None)
-                    context.open_order_deadlines.pop(orders_key, None)
-
-                except nobitex_rpc.Client.Err:
-                    logging.exception('err in CancelExpiredOrders')
-
-
-class CheckIfOrdersAreOpen(Action):
-    def __call__(self, context: Context) -> None:
-        try:
-            for k, order_id in [(k, oid) for k, oid in context.open_order_ids.items()]:
-                if context.nobitex_client.get_order(order_id).status in (
-                    OrderStatus.filled,
-                    OrderStatus.canceled,
-                ):
-                    context.open_order_ids.pop(k, None)
-                else:
-                    break
-
-        except nobitex_rpc.Client.Err:
-            logging.exception('err in CheckIfOrdersAreFilled')
-        else:
-            if not context.open_order_ids:
-                context.action_queue.add_action(ChangeState(State.NO_OPEN_ORDER))
-
-            else:
-                for action in (
-                    SleepForAWhile(30),
-                    CancelExpiredOrders(),
-                    CheckIfOrdersAreOpen(),
-                ):
-                    context.action_queue.add_action(action)
+        context.order_id_to_order_map[order_id] = Order(
+            amount=self.amount,
+            pair=self.pair,
+            side=self.side,
+            price=self.price,
+        )
+        context.event_listener.add_reminder(context.wait_period, CancelOrder(order_id))
 
 
 class CheckResidual(Action):
@@ -324,57 +221,56 @@ class CheckResidual(Action):
             logging.exception('PriceIsNotAvailable')
             return
 
-        regression: Regression = context.analyst.get_regression(
-            context.long_pair,
-            context.short_pair,
-            start_time,
-            end_time,
-        )
-        regression.alpha = Decimal(regression.alpha)
-        regression.beta = Decimal(regression.beta)
-        regression.long_price_normalizer = Decimal(regression.long_price_normalizer)
-        regression.short_price_normalizer = Decimal(regression.short_price_normalizer)
+        regression = context.analyst.get_regression(context.long_pair, context.short_pair, start_time, end_time)
+
         residual = (
             long_price / regression.long_price_normalizer
             - regression.alpha
             - regression.beta * short_price / regression.short_price_normalizer
         )
+        if 1 + context.trade_threshold >= residual >= 1 - context.trade_threshold:
+            return
 
-        if residual > 1 + context.trade_threshold:
-            actions = [
-                PlaceOrder(
-                    context.long_pair,
-                    context.base_trade_value / (long_price * context.pricing_factor),
-                    long_price * context.pricing_factor,
-                    Side.SHORT,
-                ),
-                PlaceOrder(
-                    context.short_pair,
-                    context.base_trade_value * regression.beta / (short_price / context.pricing_factor),
-                    short_price / context.pricing_factor,
-                    Side.LONG,
-                ),
-            ]
-        elif residual < 1 - context.trade_threshold:
-            actions = [
-                PlaceOrder(
-                    context.long_pair,
-                    context.base_trade_value / (long_price / context.pricing_factor),
-                    long_price / context.pricing_factor,
-                    Side.LONG,
-                ),
-                PlaceOrder(
-                    context.short_pair,
-                    context.base_trade_value * regression.beta / (short_price * context.pricing_factor),
-                    short_price * context.pricing_factor,
-                    Side.SHORT,
-                ),
-            ]
-        else:
-            actions = []
+        should_short_long_asset = 1 + context.trade_threshold < residual
+        long_pair_side = Side.SHORT if should_short_long_asset else Side.LONG
+        short_pair_side = Side.LONG if should_short_long_asset else Side.SHORT
 
-        for action in actions:
-            context.action_queue.add_action(action)
+        pf = context.pricing_factor
+        long_pair_price = long_price * (pf if should_short_long_asset else 1 / pf)
+        short_pair_price = short_price * (1 / pf if should_short_long_asset else pf)
+
+        context.action_queue.add_action(
+            PlaceOrder(
+                context.long_pair,
+                context.base_trade_value / long_pair_price,
+                long_pair_price,
+                long_pair_side,
+            )
+        )
+
+        context.action_queue.add_action(
+            PlaceOrder(
+                context.short_pair,
+                regression.beta * context.base_trade_value / short_pair_price,
+                short_pair_price,
+                short_pair_price,
+            )
+        )
+
+
+class UpdateOrderFill:
+    def __init__(self, fill: Fill) -> None:
+        self.fill = fill
+
+    def __call__(self, context: Context) -> None:
+        order = context.order_id_to_order_map.get(self.fill.order_id)
+        if order is None:
+            return
+        order.filled_amount += self.fill.amount
+        if order.filled_amount < order.amount:
+            return
+        context.order_id_to_order_map.pop(self.fill.order_id)
+        context.set_pair_order_to_close(order.pair)
 
 
 def main() -> None:
@@ -388,25 +284,32 @@ def main() -> None:
             context.action_queue.pop_action()(context)
             continue
 
-        logging.debug('waiting for event'),
+        logging.debug('waiting for event')
         event = context.event_listener.wait()
         logging.debug('received')
 
-        if isinstance(event, ShouldDo):
-            event.do(context)
+        if event.topic == listener.REMINDER_TOPIC and isinstance(event.data, Action):
+            event.data(context)
             continue
 
         if context.state == State.NN and event.topic in (
-            topics.LONG_LONG_ORDERBOOK,
-            topics.LONG_SHORT_ORDERBOOK,
-            topics.SHORT_LONG_ORDERBOOK,
-            topics.SHORT_SHORT_ORDERBOOK,
+            topics.long_asset_orderbook,
+            topics.short_asset_orderbook,
         ):
             CheckResidual()(context)
             continue
 
-        if context.state == State.NN:
-            CheckIfOrdersAreOpen()(context)
+        if context.state != State.NN and event.topic in (
+            topics.long_asset_orderbook,
+            topics.short_asset_orderbook,
+        ):
+            continue
+
+        if context.state != State.NN and event.topic in (
+            topics.long_asset_fill,
+            topics.short_asset_fill,
+        ):
+            UpdateOrderFill(event.data)(context)
             continue
 
         logging.error(

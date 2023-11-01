@@ -3,6 +3,8 @@ from decimal import Decimal
 import dataclasses
 from datetime import datetime
 
+from typing import Union
+
 from frog.utils import msgpack
 
 
@@ -50,7 +52,7 @@ class Side(msgpack.Enum):
 
 
 class Amount:
-    def __init__(self, value: Decimal | float | int | str) -> None:
+    def __init__(self, value: Union[Decimal, float, int, str]) -> None:
         if isinstance(value, Decimal):
             self._value = value
             return
@@ -71,7 +73,7 @@ class Amount:
     def __repr__(self) -> str:
         return self._value.__repr__().replace('Decimal', 'Amount')
 
-    def __mul__(self, __value: Decimal | float | int) -> 'Amount':
+    def __mul__(self, __value: Union[Decimal, float, int]) -> 'Amount':
         if isinstance(__value, (Decimal, int)):
             return Amount(self._value.__mul__(__value))
 
@@ -81,8 +83,8 @@ class Amount:
         raise NotImplementedError
 
     def __truediv__(
-        self, __value: 'Price' | 'Value' | 'Amount' | Decimal | float | int
-    ) -> Decimal | 'Amount' | 'Price' | 'Value':
+        self, __value: Union['Price', 'Value', 'Amount', Decimal, float, int]
+    ) -> Union[Decimal, 'Amount', 'Price', 'Value']:
         if isinstance(__value, (Decimal, int)):
             return Amount(self._value.__truediv__(__value))
 
@@ -102,7 +104,7 @@ class Amount:
 
 
 class Price:
-    def __init__(self, value: Decimal | float | int | str) -> None:
+    def __init__(self, value: Union[Decimal, float, int, str]) -> None:
         if isinstance(value, Decimal):
             self._value = value
             return
@@ -117,7 +119,10 @@ class Price:
 
         raise NotImplementedError
 
-    def __mul__(self, __value: 'Value' | Decimal | float | int) -> 'Price' | Amount:
+    def __add__(self, __value: 'Price') -> 'Price':
+        return Price(self._value + __value._value)
+
+    def __mul__(self, __value: Union['Value', Decimal, float, int]) -> Union['Price', Amount]:
         if isinstance(__value, (Decimal, int)):
             return Price(self._value.__mul__(__value))
 
@@ -129,7 +134,7 @@ class Price:
 
         raise NotImplementedError
 
-    def __truediv__(self, __value: 'Price' | Decimal | int | float) -> 'Price' | Decimal:
+    def __truediv__(self, __value: Union['Price', Decimal, int, float]) -> Union['Price', Decimal]:
         if isinstance(__value, Price):
             return self._value.__truediv__(__value._value)
 
@@ -143,7 +148,7 @@ class Price:
 
 
 class Value:
-    def __init__(self, value: Decimal | float | int | str) -> None:
+    def __init__(self, value: Union[Decimal, float, int, str]) -> None:
         if isinstance(value, Decimal):
             self._value = value
             return
@@ -158,7 +163,10 @@ class Value:
 
         raise NotImplementedError
 
-    def __mul__(self, __value: Price | Decimal | float | int) -> 'Value' | Amount:
+    def __add__(self, __value: 'Value') -> 'Value':
+        return Value(self._value + __value._value)
+
+    def __mul__(self, __value: Union[Price, Decimal, float, int]) -> Union['Value', Amount]:
         if isinstance(__value, (Decimal, int)):
             return Value(self._value.__mul__(__value))
 
@@ -170,7 +178,7 @@ class Value:
 
         raise NotImplementedError
 
-    def __truediv__(self, __value: 'Value' | Decimal | float | int) -> Decimal | 'Value':
+    def __truediv__(self, __value: Union['Value', Decimal, float, int]) -> Union[Decimal, 'Value']:
         if isinstance(__value, (Decimal, int)):
             return Value(self._value.__truediv__(__value))
 

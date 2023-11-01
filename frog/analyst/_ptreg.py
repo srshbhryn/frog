@@ -24,8 +24,9 @@ def get_linear_regression(
 ) -> Regression:
     long_prices = _client.get_timerange_price(long_pair, start_time, end_time)
     short_prices = _client.get_timerange_price(short_pair, start_time, end_time)
-    avg_long_price = sum(long_prices.values(), Price(0)) / len(long_prices)
-    avg_short_price = sum(short_prices.values(), Price(0)) / len(short_prices)
+
+    avg_long_price = sum(long_prices.values()) / int(len(long_prices))
+    avg_short_price = sum(short_prices.values()) / int(len(short_prices))
     long_price_timestamps = set(long_prices.keys())
     short_price_timestamps = set(short_prices.keys())
     timestamps_intersection_set = long_price_timestamps.intersection(

@@ -49,23 +49,23 @@ class Service(OrderManger):
                         continue
 
                     if self._orders[oid].status in (
-                        OrderStatus.filled,
-                        OrderStatus.canceled,
+                        OrderStatus.FILLED,
+                        OrderStatus.CANCELED,
                     ):
                         continue
                     self._orders[oid].filled_amount = Amount(
                         order['matchedAmount'],
                     )
                     if order['status'] == 'Done':
-                        self._orders[oid].status = OrderStatus.filled
+                        self._orders[oid].status = OrderStatus.FILLED
                     if order['status'] == 'Canceled':
-                        self._orders[oid].status = OrderStatus.canceled
+                        self._orders[oid].status = OrderStatus.CANCELED
 
             finally:
                 self._mutex.release()
 
     @RpcService.register
-    def place_order(self, order: Order) -> int:
+    def place_order(self, order: Order) -> OrderId:
         data = {
             'type': 'buy' if order.side == Side.LONG else 'sell',
             'srcCurrency': str(order.pair.base),

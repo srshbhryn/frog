@@ -1,6 +1,6 @@
 import dataclasses
 import enum
-from typing import Any, Optional, Callable, TYPE_CHECKING
+from typing import Any, Optional, Callable, TYPE_CHECKING, Union
 
 import msgpack
 
@@ -12,7 +12,7 @@ class _EncoderStore:
     code_to_decoder_map: dict[int, Callable] = {}
 
     @classmethod
-    def encoder(cls, obj: Any) -> bytes | msgpack.ExtType:
+    def encoder(cls, obj: Any) -> Union[bytes, msgpack.ExtType]:
         code = hash(type(obj).__name__)
         tp = cls.code_to_type_map.get(code)
         if type(obj) != tp:
