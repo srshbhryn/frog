@@ -153,6 +153,7 @@ class Regression:
     long_price_normalizer: Price
     short_price_normalizer: Price
 
+
 def datetime_encoder(obj: datetime) -> bytes:
     return obj.isoformat().encode()
 
@@ -170,22 +171,6 @@ def decimal_encoder(obj: Decimal) -> bytes:
 
 def decimal_decoder(data: bytes) -> Decimal:
     return Decimal(data.decode())
-
-
-def price_encoder(obj: Price) -> bytes:
-    return str(obj).encode()
-
-
-def price_decoder(data: bytes) -> Price:
-    return Price(data.decode())
-
-
-def amount_encoder(obj: Amount) -> bytes:
-    return str(obj).encode()
-
-
-def amount_decoder(data: bytes) -> Amount:
-    return Amount(data.decode())
 
 
 msgpack.register(Price, decimal_encoder, decimal_decoder)
