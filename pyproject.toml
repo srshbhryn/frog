@@ -16,6 +16,16 @@ docstring-quotes = "double"
 inline-quotes = "single"
 multiline-quotes = "single"
 
+[tool.pylint.MASTER]
+disable = [
+  "missing-module-docstring",
+  "missing-function-docstring",
+  "missing-class-docstring",
+  "too-few-public-methods",
+
+]
+
+
 [tool.ruff]
 
 
