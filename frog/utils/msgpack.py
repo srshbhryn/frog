@@ -43,7 +43,7 @@ def register(
     tp: type,
     encoder: Optional[Callable] = None,
     decoder: Optional[Callable] = None,
-) -> type:
+) -> None:
     code = hash(tp.__name__)
     if encoder:
         _EncoderStore.code_to_encoder_map[code] = encoder
@@ -52,22 +52,22 @@ def register(
         _EncoderStore.code_to_decoder_map[code] = decoder
 
     _EncoderStore.code_to_type_map[code] = tp
-    return tp
+
 
 
 def dataclass(tp: type) -> type:
-    _tp = register(tp)
+    register(tp)
     if TYPE_CHECKING:
-        assert dataclasses.is_dataclass(_tp)
-        assert hasattr(_tp, '__slots__')
+        assert dataclasses.is_dataclass(tp)
+        assert hasattr(tp, '__slots__')
 
-    setattr(_tp, 'encode', lambda i: tuple(getattr(i, s) for s in _tp.__slots__))
+    setattr(tp, 'encode', lambda i: tuple(getattr(i, s) for s in tp.__slots__))
 
-    return _tp
+    return tp
 
 class Enum(enum.Enum):
     def __init_subclass__(cls):
-        _ = register(cls)
+        register(cls)
 
     def encode(self):
         return (self.value,)
