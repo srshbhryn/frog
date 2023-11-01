@@ -18,6 +18,7 @@ multiline-quotes = "single"
 
 [tool.pylint.MASTER]
 disable = [
+  "too-many-locals",
   "missing-module-docstring",
   "missing-function-docstring",
   "missing-class-docstring",

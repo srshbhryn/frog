@@ -10,7 +10,7 @@ from frog.ordermanager.nobitex import rpc as nobitex_rpc
 from frog.ordermanager.types import Fill, OrderId
 from frog.square.rpc import RpcClient
 from frog.tradestore import rpc as tradestore_rpc
-from frog.types import Amount, Asset, Pair, Price, Side, Regression
+from frog.types import Amount, Asset, Pair, Price, Side
 from frog.utils import listener
 from frog.utils.shortcuts import now
 
@@ -234,26 +234,24 @@ class CheckResidual(Action):
         should_short_long_asset = 1 + context.trade_threshold < residual
         long_pair_side = Side.SHORT if should_short_long_asset else Side.LONG
         short_pair_side = Side.LONG if should_short_long_asset else Side.SHORT
-
         pf = context.pricing_factor
         long_pair_price = long_price * (pf if should_short_long_asset else 1 / pf)
         short_pair_price = short_price * (1 / pf if should_short_long_asset else pf)
 
         context.action_queue.add_action(
             PlaceOrder(
-                context.long_pair,
-                context.base_trade_value / long_pair_price,
-                long_pair_price,
-                long_pair_side,
+                pair=context.long_pair,
+                amount=context.base_trade_value / long_pair_price,
+                price=long_pair_price,
+                side=long_pair_side,
             )
         )
-
         context.action_queue.add_action(
             PlaceOrder(
-                context.short_pair,
-                regression.beta * context.base_trade_value / short_pair_price,
-                short_pair_price,
-                short_pair_price,
+                pair=context.short_pair,
+                amount=regression.beta * context.base_trade_value / short_pair_price,
+                price=short_pair_price,
+                side=short_pair_side,
             )
         )
 

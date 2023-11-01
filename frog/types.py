@@ -67,6 +67,9 @@ class Amount:
 
         raise NotImplementedError
 
+    def __lt__(self, __value: 'Amount'):
+        return self._value < __value._value
+
     def __add__(self, __value: 'Amount') -> 'Amount':
         return Amount(self._value + __value._value)
 
