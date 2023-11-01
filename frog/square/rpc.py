@@ -45,7 +45,7 @@ class RpcService:
     Err = RpcError
 
     @classmethod
-    def register(cls, method: typing.Callable) -> typing.Callable:
+    def register(cls, method):
         cls.rpc_methods[method.__name__] = method
         return method
 
