@@ -6,7 +6,6 @@ from frog.utils import msgpack
 
 
 def test_1():
-    @msgpack.register
     class A:
         def __init__(self, alpha, beta) -> None:
             self.alpha = alpha
@@ -24,13 +23,13 @@ def test_1():
                 raise NotImplementedError
             return self.alpha == __value.alpha and self.beta == __value.beta
 
+    msgpack.register(A)
     a = A(127, 32343)
     assert a == msgpack.loads(msgpack.dumps(a))
 
 
 def test_default_decoder():
 
-    @msgpack.register
     class B:
         def __init__(self, x, y) -> None:
             self.x = x
@@ -44,7 +43,7 @@ def test_default_decoder():
                 raise NotImplementedError
             return self.x == __value.x and self.y == __value.y
 
-
+    msgpack.register(B)
     b = B('wow', 3234334556)
     assert b == msgpack.loads(msgpack.dumps(b))
 

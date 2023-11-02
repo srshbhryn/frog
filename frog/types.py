@@ -1,4 +1,3 @@
-from _decimal import _Decimal, Decimal
 from decimal import Decimal
 import dataclasses
 from datetime import datetime
