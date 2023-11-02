@@ -12,8 +12,10 @@ from frog import config
 from frog.bookwatch._helpers import translate_asset_name
 from frog.config import ALL_PAIRS
 from frog.types import Pair
+from frog.utils import msgpack
 
 
+@msgpack.dataclass
 @dataclasses.dataclass(slots=True)
 class Trade:
     pair: Pair
@@ -106,7 +108,7 @@ class NobitexTradeCollector:
                 await self.zmq_sock.send_multipart(
                     [
                         f'trade_{pair}'.lower().encode(),
-                        json.dumps(serialized_trade.as_dict()).encode(),
+                        msgpack.dumps(serialized_trade),
                     ],
                 )
 

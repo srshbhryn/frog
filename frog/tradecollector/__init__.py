@@ -1,1 +1,1 @@
-from ._client import NobitexTradeCollector
+from ._client import NobitexTradeCollector, Trade

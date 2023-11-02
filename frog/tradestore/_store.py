@@ -1,8 +1,8 @@
-import json
 
 import zmq
 
 from frog import config
+from frog.utils import msgpack
 from frog.utils.shortcuts import get_zmq_context
 
 from ._django_setup import migrate, setup
@@ -22,5 +22,5 @@ def store_main() -> None:
     socket.connect(f'tcp://{config.HIGHWAY_HOST}:{config.HIGHWAY_XPUB_PORT}')
 
     while True:
-        data = socket.recv_multipart()
-        store_trade(json.loads(data[1]))
+        _, data = socket.recv_multipart()
+        store_trade(msgpack.loads(data))
