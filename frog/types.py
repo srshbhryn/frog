@@ -41,6 +41,17 @@ class Pair:
     def  __hash__(self) -> int:
         return hash(self.__str__())
 
+    @staticmethod
+    def get_from_str(string: str) -> 'Pair':
+        string = string.lower()
+        if string[-3:] == 'rls':
+            return Pair(Asset(string[:-3]), Asset(string[-3:]))
+
+        if string[-4:] == 'usdt':
+            return Pair(Asset(string[:-4]), Asset(string[-4:]))
+
+        raise ValueError
+
 
 class Side(msgpack.Enum):
     SHORT = b'1'
@@ -65,6 +76,9 @@ class Amount:
             return
 
         raise NotImplementedError
+
+    def as_decimal(self):
+        return self._value
 
     def __lt__(self, __value: 'Amount'):
         return self._value < __value._value
@@ -148,6 +162,8 @@ class Price:
 
         raise NotImplementedError
 
+    def as_decimal(self):
+        return self._value
 
 class Value:
     def __init__(self, value: Union[Decimal, float, int, str]) -> None:
@@ -194,6 +210,9 @@ class Value:
 
     def __repr__(self) -> str:
         return self._value.__repr__().replace('Decimal', 'Value')
+
+    def as_decimal(self):
+        return self._value
 
 
 @msgpack.dataclass

@@ -11,7 +11,7 @@ from tornado.httpclient import AsyncHTTPClient, HTTPRequest
 from frog import config
 from frog.bookwatch._helpers import translate_asset_name
 from frog.config import ALL_PAIRS
-from frog.types import Pair
+from frog.types import Pair, Amount, Price
 from frog.utils import msgpack
 
 
@@ -20,8 +20,8 @@ from frog.utils import msgpack
 class Trade:
     pair: Pair
     time: int
-    amount: str
-    price: str
+    amount: Amount
+    price: Price
     is_buyer_maker: bool
 
     def __hash__(self) -> int:
@@ -125,7 +125,7 @@ class NobitexTradeCollector:
         return Trade(
             pair,
             obj['time'],
-            str(obj['volume']),
-            str(obj['price']),
+            Amount(obj['volume']),
+            Price(obj['price']),
             is_buyer_maker,
         )

@@ -4,14 +4,21 @@ import zmq
 from frog import config
 from frog.utils import msgpack
 from frog.utils.shortcuts import get_zmq_context
+from frog.tradecollector import Trade as TradeDTO
 
 from ._django_setup import migrate, setup
 
 
-def store_trade(trade: dict) -> None:
+def store_trade(trade: TradeDTO) -> None:
     from .db.models import Trade
-    trade['time'] = trade['time'] / 1000
-    Trade.objects.create(**trade)
+
+    Trade.objects.create(
+        pair=trade.pair,
+        time=trade.time / 1000,
+        amount=trade.amount.as_decimal(),
+        price=trade.price.as_decimal(),
+        is_buyer_maker=trade.is_buyer_maker,
+    )
 
 
 def store_main() -> None:
