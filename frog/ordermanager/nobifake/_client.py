@@ -14,6 +14,8 @@ from frog.tradecollector import Trade
 
 
 class FakeOms(OrderManger):
+    FEE_FACTOR = 0.999
+
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._order_id_to_order_map: dict[OrderId, Order] = {}
@@ -92,10 +94,10 @@ class FakeOms(OrderManger):
             order.status = OrderStatus.FILLED
 
         if order.side == Side.LONG:
-            self._add_to_position(order.pair.base, effective_amount)
+            self._add_to_position(order.pair.base, effective_amount * self.FEE_FACTOR)
 
         elif order.side == Side.SHORT:
-            self._quote_asset_balance += trade.price * effective_amount
+            self._quote_asset_balance += trade.price * effective_amount * self.FEE_FACTOR
 
         else:
             raise ValueError
