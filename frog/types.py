@@ -80,6 +80,12 @@ class Amount:
     def as_decimal(self):
         return self._value
 
+    def __neg__(self):
+        return self * (-1)
+
+    def __sub__(self, __value: 'Amount') -> 'Amount':
+        return self + -__value
+
     def __lt__(self, __value: 'Amount'):
         return self._value < __value._value
 
@@ -135,6 +141,12 @@ class Price:
 
         raise NotImplementedError
 
+    def __lt__(self, __value: 'Price') -> bool:
+        return self._value.__lt__(__value._value)
+
+    def __gt__(self, __value: 'Price') -> bool:
+        return __value.__lt__(self)
+
     def __add__(self, __value: 'Price') -> 'Price':
         return Price(self._value + __value._value)
 
@@ -180,6 +192,9 @@ class Value:
             return
 
         raise NotImplementedError
+
+    def __neg__(self):
+        return self * (-1)
 
     def __add__(self, __value: 'Value') -> 'Value':
         return Value(self._value + __value._value)

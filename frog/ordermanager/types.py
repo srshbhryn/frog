@@ -24,9 +24,8 @@ class Order:
     side: Side
     amount: Amount
     price: Optional[Price] = None
-    status: Optional[OrderStatus] = OrderStatus.QUEUED
-    filled_amount: Optional[Amount] = Amount('0')
-
+    status: OrderStatus = OrderStatus.QUEUED
+    filled_amount: Amount = Amount('0')
 
 @msgpack.dataclass
 @dataclasses.dataclass(slots=True)
