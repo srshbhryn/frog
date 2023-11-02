@@ -7,6 +7,7 @@
       "ioloop",
       "levelname",
       "msgpack",
+      "nobifake",
       "Nobitex",
       "ordermanager",
       "PRICESERVICE",

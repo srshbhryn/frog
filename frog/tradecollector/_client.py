@@ -93,7 +93,7 @@ class NobitexTradeCollector:
             try:
                 for pair in ALL_PAIRS:
                     ioloop.IOLoop.current().add_callback(self.fetch_market, pair=pair)
-            except Exception:
+            except:
                 logging.exception('Error in nobitex trade collector')
             await asyncio.sleep(3)
 
