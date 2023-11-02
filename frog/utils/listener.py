@@ -6,6 +6,7 @@ import logging
 from queue import Queue
 from threading import Thread, Lock
 from typing import Any
+import time
 
 import zmq
 import zmq.asyncio as async_zmq
@@ -67,6 +68,7 @@ class Listener:
         event_queue: Queue,
         reminder_queue: asyncio.Queue,
     ) -> None:
+        time.sleep(0.05)
         socket = async_zmq.Context().socket(zmq.SUB)
         socket.connect(self.HIGHWAY_URL)
         for topic in self.topics:
