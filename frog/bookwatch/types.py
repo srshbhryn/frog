@@ -16,7 +16,3 @@ class Entry:
 class Book:
     asks: list[Entry]
     bids: list[Entry]
-
-    @classmethod
-    def encoder(cls, instance):
-        return (instance.asks, instance.bids)

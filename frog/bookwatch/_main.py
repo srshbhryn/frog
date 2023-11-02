@@ -23,5 +23,5 @@ def main() -> None:
                         msgpack.dumps(book),
                     ]
                 )
-        except Exception:
+        except:
             logging.exception('Error in bookwatch main loop.')

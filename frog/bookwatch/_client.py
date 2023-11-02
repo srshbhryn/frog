@@ -4,7 +4,7 @@ import requests
 
 from frog import config
 
-from frog.types import Asset, Pair, Price, Amount
+from frog.types import Asset, Price, Amount
 
 from .types import Entry, Book
 from ._helpers import translate_asset_name

@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from frog.utils.listener import Listener, REMINDER_TOPIC, Reminder
+from frog.utils.listener import Listener, REMINDER_TOPIC
 
 
 def fun(x):
