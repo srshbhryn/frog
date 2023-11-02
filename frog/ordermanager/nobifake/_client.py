@@ -1,4 +1,5 @@
 import logging
+import time
 import threading
 
 import zmq
@@ -40,7 +41,12 @@ class FakeOms(OrderManger):
         return None
 
     def _reporter(self, lock: threading.Lock):
-        pass
+        while True:
+            with lock:
+                logging.info('Quote Balance, %s', str(self._quote_asset_balance.as_decimal()))
+                for asset, pos in self._asset_to_position_amount_map.items():
+                    logging.info('%s Position, %s', str(asset), str(pos.as_decimal()))
+            time.sleep(10)
 
     def _background(self, lock: threading.Lock):
         subscribe_socket: zmq.Socket = get_zmq_context().socket(zmq.SUB)
