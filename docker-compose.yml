@@ -8,7 +8,7 @@ services:
 
   highway:
     image: frog_image
-    command: "python cmd/highway.py"
+    command: "python bin/highway.py"
     environment:
       - ENV=PROD
       - LOG_LEVEL=INFO
@@ -16,7 +16,7 @@ services:
 
   orderbook:
     image: frog_image
-    command: "python cmd/orderbook.py"
+    command: "python bin/orderbook.py"
     environment:
       - ENV=PROD
       - LOG_LEVEL=INFO
@@ -24,7 +24,7 @@ services:
 
   tradecollector:
     image: frog_image
-    command: "python cmd/tradecollector.py"
+    command: "python bin/tradecollector.py"
     environment:
       - ENV=PROD
       - LOG_LEVEL=INFO
@@ -32,7 +32,7 @@ services:
 
   tradestore:
     image: frog_image
-    command: "python cmd/tradestore.py"
+    command: "python bin/tradestore.py"
     environment:
       - ENV=PROD
       - LOG_LEVEL=INFO
@@ -42,7 +42,7 @@ services:
 
   analyst:
     image: frog_image
-    command: "python cmd/analyst.py"
+    command: "python bin/analyst.py"
     environment:
       - ENV=PROD
       - LOG_LEVEL=INFO
@@ -50,7 +50,7 @@ services:
 
   nobifake:
     image: frog_image
-    command: "python cmd/nobifake_oms.py"
+    command: "python bin/nobifake_oms.py"
     environment:
       - ENV=PROD
       - LOG_LEVEL=DEBUG
@@ -58,7 +58,7 @@ services:
 
   eye:
     image: frog_image
-    command: "python cmd/eye.py"
+    command: "python bin/eye.py"
     environment:
       - ENV=PROD
       - LOG_LEVEL=DEBUG
