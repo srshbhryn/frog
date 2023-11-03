@@ -54,8 +54,8 @@ class Pair:
 
 
 class Side(msgpack.Enum):
-    SHORT = b'1'
-    LONG = b'2'
+    SHORT = '1'
+    LONG = '2'
 
     def __str__(self) -> str:
         return self.name
@@ -76,6 +76,9 @@ class Amount:
             return
 
         raise NotImplementedError
+
+    def encode(self):
+        return (self._value,)
 
     def as_decimal(self):
         return self._value
@@ -141,6 +144,9 @@ class Price:
 
         raise NotImplementedError
 
+    def encode(self):
+        return (self._value,)
+
     def __lt__(self, __value: 'Price') -> bool:
         return self._value.__lt__(__value._value)
 
@@ -177,6 +183,7 @@ class Price:
     def as_decimal(self):
         return self._value
 
+
 class Value:
     def __init__(self, value: Union[Decimal, float, int, str]) -> None:
         if isinstance(value, Decimal):
@@ -192,6 +199,9 @@ class Value:
             return
 
         raise NotImplementedError
+
+    def encode(self):
+        return (self._value,)
 
     def __neg__(self):
         return self * (-1)
@@ -246,25 +256,26 @@ class Regression:
     short_price_normalizer: Price
 
 
-def datetime_encoder(obj: datetime) -> bytes:
-    return obj.isoformat().encode()
+def datetime_encoder(obj: datetime) -> str:
+    return obj.isoformat()
 
 
-def datetime_decoder(data: bytes) -> datetime:
-    return datetime.fromisoformat(data.decode())
+def datetime_decoder(data: str) -> datetime:
+    return datetime.fromisoformat(data)
 
 
 msgpack.register(datetime, datetime_encoder, datetime_decoder)
 
 
-def decimal_encoder(obj: Decimal) -> bytes:
-    return str(obj).encode()
+def decimal_encoder(obj: Decimal) -> str:
+    return str(obj)
 
 
-def decimal_decoder(data: bytes) -> Decimal:
-    return Decimal(data.decode())
+def decimal_decoder(data: str) -> Decimal:
+    return Decimal(data)
 
 
-msgpack.register(Price, decimal_encoder, decimal_decoder)
-msgpack.register(Amount, decimal_encoder, decimal_decoder)
 msgpack.register(Decimal, decimal_encoder, decimal_decoder)
+msgpack.register(Amount)
+msgpack.register(Price)
+msgpack.register(Value)

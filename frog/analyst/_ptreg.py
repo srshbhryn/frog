@@ -1,4 +1,5 @@
 import functools
+from decimal import Decimal
 from datetime import datetime
 
 import numpy as np
@@ -25,8 +26,8 @@ def get_linear_regression(
     long_prices = _client.get_timerange_price(long_pair, start_time, end_time)
     short_prices = _client.get_timerange_price(short_pair, start_time, end_time)
 
-    avg_long_price = sum(long_prices.values()) / int(len(long_prices))
-    avg_short_price = sum(short_prices.values()) / int(len(short_prices))
+    avg_long_price = sum(long_prices.values(), start=Price(0)) / int(len(long_prices))
+    avg_short_price = sum(short_prices.values(), start=Price(0)) / int(len(short_prices))
     long_price_timestamps = set(long_prices.keys())
     short_price_timestamps = set(short_prices.keys())
     timestamps_intersection_set = long_price_timestamps.intersection(
@@ -45,6 +46,6 @@ def get_linear_regression(
         np.array([[1, p] for p in short_returns]),
         np.array(long_returns),
     )
-    alpha = regression.predict([[1, 0]])[0]
-    beta = regression.predict([[1, 1]])[0] - alpha
+    alpha = Decimal(regression.predict([[1, 0]])[0])
+    beta = Decimal(regression.predict([[1, 1]])[0]) - alpha
     return Regression(alpha, beta, avg_long_price, avg_short_price)

@@ -15,6 +15,7 @@ from frog.tradecollector import Trade
 
 
 class Service(OrderManger):
+    topic = b'nobifake'
     FEE_FACTOR = 0.999
 
     def __init__(self) -> None:
@@ -60,11 +61,11 @@ class Service(OrderManger):
             try:
                 data = subscribe_socket.recv_multipart()
                 topic = data[0].decode()
-                if topic.startswith('trade'):
-                    topic_type = 'trade'
+                if topic.startswith('trade_'):
+                    topic_type = 'trade_'
 
-                elif topic.startswith('order'):
-                    topic_type = 'order'
+                elif topic.startswith('order_'):
+                    topic_type = 'order_'
                 else:
                     continue
                 pair = Pair.get_from_str(topic.replace(topic_type, ''))

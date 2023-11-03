@@ -8,7 +8,7 @@ from decimal import Decimal
 from frog.analyst import rpc as analyst_rpc
 from frog.ordermanager.nobifake import rpc as nobitex_rpc
 from frog.ordermanager.types import Fill, OrderId
-from frog.square.rpc import RpcClient
+from frog.square.rpc import RpcClient, RpcError
 from frog.tradestore import rpc as tradestore_rpc
 from frog.types import Amount, Asset, Pair, Price, Side
 from frog.utils import listener
@@ -92,12 +92,12 @@ class Context:
 
     # helpers
     event_listener: listener.Listener
-    action_queue: ActionQueue = ActionQueue()
-    client: Client = Client()
+    action_queue: ActionQueue
+    client: Client
 
     # state
-    state: State = State.NN
-    order_id_to_order_map: dict[OrderId, Order] = {}
+    state: State
+    order_id_to_order_map: dict[OrderId, Order]
     ####  config
     regression_len = 120
     trade_threshold = Decimal('0.002')
@@ -121,6 +121,10 @@ class Context:
         return self.client.nobitex_client
 
     def __init__(self) -> None:
+        self.state = State.NN
+        self.action_queue = ActionQueue()
+        self.client = Client()
+        self.order_id_to_order_map = {}
         self.external_events_topics = Topics(
             listener.Topic(f'order_{self.long_pair}'.encode()),
             listener.Topic(f'order_{self.short_pair}'.encode()),
@@ -135,6 +139,7 @@ class Context:
                 self.external_events_topics.short_asset_fill,
             ],
         )
+        self.event_listener.initialize()
 
     @property
     def long_pair(self) -> Pair:
@@ -211,13 +216,15 @@ class PlaceOrder(Action):
 
 class CheckResidual(Action):
     def __call__(self, context: Context) -> None:
+        logging.debug('checking residual')
         end_time = now().replace(second=0, microsecond=0)
         start_time = end_time - datetime.timedelta(minutes=context.regression_len)
 
         try:
             long_price = context.trade_store.get(context.long_pair, end_time)
             short_price = context.trade_store.get(context.short_pair, end_time)
-        except tradestore_rpc.Errors.PriceIsNotAvailable:
+
+        except RpcError:
             logging.exception('PriceIsNotAvailable')
             return
 
@@ -226,12 +233,16 @@ class CheckResidual(Action):
         residual = (
             long_price / regression.long_price_normalizer
             - regression.alpha
-            - regression.beta * short_price / regression.short_price_normalizer
+            - regression.beta * (short_price / regression.short_price_normalizer)
         )
-        if 1 + context.trade_threshold >= residual >= 1 - context.trade_threshold:
+        logging.debug('residual is, %s', str(residual))
+        logging.debug('regression: %s', str(regression))
+        logging.debug('long price: %s, short price: %s', str(long_price), str(short_price))
+
+        if context.trade_threshold >= residual >= -context.trade_threshold:
             return
 
-        should_short_long_asset = 1 + context.trade_threshold < residual
+        should_short_long_asset = context.trade_threshold < residual
         long_pair_side = Side.SHORT if should_short_long_asset else Side.LONG
         short_pair_side = Side.LONG if should_short_long_asset else Side.SHORT
         pf = context.pricing_factor
@@ -249,7 +260,7 @@ class CheckResidual(Action):
         context.action_queue.add_action(
             PlaceOrder(
                 pair=context.short_pair,
-                amount=regression.beta * context.base_trade_value / short_pair_price,
+                amount=(context.base_trade_value / short_pair_price) * regression.beta,
                 price=short_pair_price,
                 side=short_pair_side,
             )
