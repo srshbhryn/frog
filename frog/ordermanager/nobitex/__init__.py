@@ -1,4 +1,1 @@
-from . import _ordermanager
-
-
-rpc = _ordermanager
+from . import _ordermanager as rpc
