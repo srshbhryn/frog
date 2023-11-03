@@ -1,17 +1,17 @@
 version: '3.8'
 
 services:
+  frog_image:
+    build:
+      context: .
+    image: frog_image
+
   highway:
     image: frog_image
     command: "python cmd/highway.py"
     env_file:
       - .env
     restart: always
-
-  frog_image:
-    build:
-      context: .
-    image: frog_image
 
   orderbook:
     image: frog_image
@@ -35,6 +35,20 @@ services:
     restart: always
     volumes:
       - ./data:/data/
+
+  analyst:
+    image: frog_image
+    command: "python cmd/analyst.py"
+    env_file:
+      - .env
+    restart: always
+
+  nobifake:
+    image: frog_image
+    command: "python cmd/nobifake_oms.py"
+    env_file:
+      - .env
+    restart: always
 
   eye:
     image: frog_image
