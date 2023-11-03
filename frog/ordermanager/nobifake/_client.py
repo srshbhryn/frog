@@ -14,7 +14,7 @@ from frog.types import Amount, Value, Asset
 from frog.tradecollector import Trade
 
 
-class FakeOms(OrderManger):
+class Service(OrderManger):
     FEE_FACTOR = 0.999
 
     def __init__(self) -> None:

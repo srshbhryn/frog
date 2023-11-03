@@ -10,4 +10,4 @@ if __name__ == '__main__':
         datefmt='%Y-%m-%d %H:%M:%S',
     )
 
-    rpc.FakeOms().run_server()
+    rpc.Service().run_server()
