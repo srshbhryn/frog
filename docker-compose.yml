@@ -9,29 +9,33 @@ services:
   highway:
     image: frog_image
     command: "python cmd/highway.py"
-    env_file:
-      - .env
+    environment:
+      - ENV=PROD
+      - LOG_LEVEL=INFO
     restart: always
 
   orderbook:
     image: frog_image
     command: "python cmd/orderbook.py"
-    env_file:
-      - .env
+    environment:
+      - ENV=PROD
+      - LOG_LEVEL=INFO
     restart: always
 
   tradecollector:
     image: frog_image
     command: "python cmd/tradecollector.py"
-    env_file:
-      - .env
+    environment:
+      - ENV=PROD
+      - LOG_LEVEL=INFO
     restart: always
 
   tradestore:
     image: frog_image
     command: "python cmd/tradestore.py"
-    env_file:
-      - .env
+    environment:
+      - ENV=PROD
+      - LOG_LEVEL=INFO
     restart: always
     volumes:
       - ./data:/data/
@@ -39,20 +43,23 @@ services:
   analyst:
     image: frog_image
     command: "python cmd/analyst.py"
-    env_file:
-      - .env
+    environment:
+      - ENV=PROD
+      - LOG_LEVEL=INFO
     restart: always
 
   nobifake:
     image: frog_image
     command: "python cmd/nobifake_oms.py"
-    env_file:
-      - .env
+    environment:
+      - ENV=PROD
+      - LOG_LEVEL=DEBUG
     restart: always
 
   eye:
     image: frog_image
     command: "python cmd/eye.py"
-    env_file:
-      - .env
+    environment:
+      - ENV=PROD
+      - LOG_LEVEL=DEBUG
     restart: always
