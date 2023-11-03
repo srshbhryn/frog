@@ -10,7 +10,7 @@ from frog.ordermanager.nobifake import rpc as nobitex_rpc
 from frog.ordermanager.types import Fill, OrderId
 from frog.square.rpc import RpcClient, RpcError
 from frog.tradestore import rpc as tradestore_rpc
-from frog.types import Amount, Asset, Pair, Price, Side
+from frog.types import Amount, Asset, Pair, Price, Side, Value
 from frog.utils import listener
 from frog.utils.shortcuts import now
 
@@ -100,13 +100,14 @@ class Context:
     order_id_to_order_map: dict[OrderId, Order]
     ####  config
     regression_len = 120
-    trade_threshold = Decimal('0.002')
+    trade_threshold = Decimal('-0.002')
+    # trade_threshold = Decimal('0.002')
     pricing_factor = Decimal('1.0')
     wait_period = datetime.timedelta(minutes=240)
     long_asset = Asset.BTC
     short_asset = Asset.ETH
     quote_asset = Asset.RLS
-    base_trade_value = Amount('500_000_0')
+    base_trade_value = Value('500_000_0')
 
     @property
     def analyst(self) -> analyst_rpc.Service:
@@ -211,6 +212,7 @@ class PlaceOrder(Action):
             side=self.side,
             price=self.price,
         )
+        context.set_pair_order_to_open(self.pair)
         context.event_listener.add_reminder(context.wait_period, CancelOrder(order_id))
 
 
@@ -248,11 +250,14 @@ class CheckResidual(Action):
         pf = context.pricing_factor
         long_pair_price = long_price * (pf if should_short_long_asset else 1 / pf)
         short_pair_price = short_price * (1 / pf if should_short_long_asset else pf)
-
+        long_amount = context.base_trade_value / long_pair_price
+        assert isinstance(long_amount, Amount)
+        short_amount = (context.base_trade_value / short_pair_price) * regression.beta
+        assert isinstance(short_amount, Amount)
         context.action_queue.add_action(
             PlaceOrder(
                 pair=context.long_pair,
-                amount=context.base_trade_value / long_pair_price,
+                amount=long_amount,
                 price=long_pair_price,
                 side=long_pair_side,
             )
@@ -260,7 +265,7 @@ class CheckResidual(Action):
         context.action_queue.add_action(
             PlaceOrder(
                 pair=context.short_pair,
-                amount=(context.base_trade_value / short_pair_price) * regression.beta,
+                amount=short_amount,
                 price=short_pair_price,
                 side=short_pair_side,
             )

@@ -98,18 +98,21 @@ class Amount:
     def __repr__(self) -> str:
         return self._value.__repr__().replace('Decimal', 'Amount')
 
-    def __mul__(self, __value: Union[Decimal, float, int]) -> 'Amount':
+    def __mul__(self, __value: Union[Decimal, float, int, 'Price']) -> Union['Amount', 'Value']:
         if isinstance(__value, (Decimal, int)):
             return Amount(self._value.__mul__(__value))
 
         if isinstance(__value, float):
             return Amount(self._value.__mul__(Decimal(str(__value))))
 
+        if isinstance(__value, Price):
+            return Value(self._value * __value._value)
+
         raise NotImplementedError
 
     def __truediv__(
         self, __value: Union['Price', 'Value', 'Amount', Decimal, float, int]
-    ) -> Union[Decimal, 'Amount', 'Price', 'Value']:
+    ) -> Union[Decimal, 'Amount', 'Value']:
         if isinstance(__value, (Decimal, int)):
             return Amount(self._value.__truediv__(__value))
 
@@ -118,9 +121,6 @@ class Amount:
 
         if isinstance(__value, Price):
             return Value(self._value.__truediv__(__value._value))
-
-        if isinstance(__value, Value):
-            return Price(self._value.__truediv__((__value._value)))
 
         if isinstance(__value, Amount):
             return self._value.__truediv__(__value._value)
@@ -156,12 +156,12 @@ class Price:
     def __add__(self, __value: 'Price') -> 'Price':
         return Price(self._value + __value._value)
 
-    def __mul__(self, __value: Union['Value', Decimal, float, int]) -> Union['Price', Amount]:
+    def __mul__(self, __value: Union[Amount, Decimal, float, int]) -> Union['Price', 'Value']:
         if isinstance(__value, (Decimal, int)):
             return Price(self._value.__mul__(__value))
 
-        if isinstance(__value, Value):
-            return Amount(self._value.__mul__(__value._value))
+        if isinstance(__value, Amount):
+            return Value(self._value.__mul__(__value._value))
 
         if isinstance(__value, float):
             return Price(self._value.__mul__(Decimal(str(__value))))
@@ -170,13 +170,17 @@ class Price:
 
     def __truediv__(self, __value: Union['Price', Decimal, int, float]) -> Union['Price', Decimal]:
         if isinstance(__value, Price):
-            return self._value.__truediv__(__value._value)
+            r = self._value.__truediv__(__value._value)
+            return r
 
         if isinstance(__value, (Decimal, int)):
-            return Price(self._value.__truediv__(__value))
+            rp = Price(self._value.__truediv__(__value))
+            return rp
+
 
         if isinstance(__value, float):
-            return Price(self._value.__truediv__(Decimal(str(__value))))
+            rp = Price(self._value.__truediv__(Decimal(str(__value))))
+            return rp
 
         raise NotImplementedError
 
@@ -221,9 +225,12 @@ class Value:
 
         raise NotImplementedError
 
-    def __truediv__(self, __value: Union['Value', Decimal, float, int]) -> Union[Decimal, 'Value']:
+    def __truediv__(self, __value: Union['Value', Decimal, float, int, Price]) -> Union[Decimal, 'Value', Amount]:
         if isinstance(__value, (Decimal, int)):
             return Value(self._value.__truediv__(__value))
+
+        if isinstance(__value, Price):
+            return Amount(self._value.__truediv__(__value._value))
 
         if isinstance(__value, float):
             return Value(self._value.__truediv__(Decimal(str(__value))))

@@ -12,6 +12,7 @@ from frog.utils import msgpack
 from frog.utils.shortcuts import get_zmq_context
 from frog.types import Amount, Value, Asset
 from frog.tradecollector import Trade
+from frog.bookwatch.types import Book
 
 
 class Service(OrderManger):
@@ -22,7 +23,7 @@ class Service(OrderManger):
         self._lock = threading.Lock()
         self._order_id_to_order_map: dict[OrderId, Order] = {}
         self._next_order_id = 0
-        self._asset_to_orderbook_snapshot_map: dict[Asset, Amount] = {}
+        self._asset_to_orderbook_snapshot_map: dict[Asset, Book] = {}
         self._quote_asset_balance = Value('10_000_000_0')
         self._quote_asset = Asset.RLS
         self._asset_to_position_amount_map: dict[Asset, Amount] = {}
@@ -42,11 +43,40 @@ class Service(OrderManger):
         return None
 
     def _reporter(self, lock: threading.Lock):
+        def get_asset_price(asset):
+            book = self._asset_to_orderbook_snapshot_map.get(asset)
+            if book is None or len(book.asks) == 0 or len(book.bids) == 0:
+                return None
+            return (book.asks[0].price + book.bids[0].price) / 2
+
         while True:
-            with lock:
-                logging.info('Quote Balance, %s', str(self._quote_asset_balance.as_decimal()))
+
+            def _():
+                account_value = self._quote_asset_balance
                 for asset, pos in self._asset_to_position_amount_map.items():
-                    logging.info('%s Position, %s', str(asset), str(pos.as_decimal()))
+                    price = get_asset_price(asset)
+                    if price is None:
+                        logging.info('cant compute account value, %s price is not available.', asset)
+                        return
+                    value = pos * price
+                    assert isinstance(value, Value)
+                    account_value += value
+
+                for order in self._order_id_to_order_map.values():
+                    if order.side == Side.LONG:
+                        assert order.price is not None
+                        blocked_value = (order.amount - order.filled_amount) * order.price
+                        assert isinstance(blocked_value, Value)
+                        account_value += blocked_value
+                    elif order.side == Side.SHORT:
+                        blocked_value = (order.amount - order.filled_amount) * get_asset_price(order.pair.base)
+                        assert isinstance(blocked_value, Value)
+                        account_value += blocked_value
+                    else:
+                        logging.error('invalid side: %s', str(order.side))
+                logging.info('Account value, %s', str(account_value))
+            with lock:
+                _()
             time.sleep(10)
 
     def _background(self, lock: threading.Lock):
@@ -71,7 +101,7 @@ class Service(OrderManger):
                 pair = Pair.get_from_str(topic.replace(topic_type, ''))
                 if pair.quote != self._quote_asset:
                     continue
-                if topic_type == 'trade':
+                if topic_type == 'trade_':
                     with lock:
                         self._update_orders(publish_socket, msgpack.loads(data[1]))
                 else:  # topic_type == 'order'
@@ -112,7 +142,7 @@ class Service(OrderManger):
         publish_socket.send_multipart(
             (
                 f'fill_{order.pair}'.encode(),
-                Fill(order_id, effective_amount),
+                msgpack.dumps(Fill(order_id, effective_amount)),
             )
         )
 
