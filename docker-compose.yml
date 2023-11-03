@@ -12,6 +12,7 @@ services:
     environment:
       - ENV=PROD
       - LOG_LEVEL=INFO
+      - PYTHONHASHSEED=0
     restart: always
 
   orderbook:
@@ -20,6 +21,7 @@ services:
     environment:
       - ENV=PROD
       - LOG_LEVEL=INFO
+      - PYTHONHASHSEED=0
     restart: always
 
   tradecollector:
@@ -28,6 +30,7 @@ services:
     environment:
       - ENV=PROD
       - LOG_LEVEL=INFO
+      - PYTHONHASHSEED=0
     restart: always
 
   tradestore:
@@ -36,6 +39,7 @@ services:
     environment:
       - ENV=PROD
       - LOG_LEVEL=INFO
+      - PYTHONHASHSEED=0
     restart: always
     volumes:
       - ./data:/data/
@@ -46,6 +50,7 @@ services:
     environment:
       - ENV=PROD
       - LOG_LEVEL=INFO
+      - PYTHONHASHSEED=0
     restart: always
 
   nobifake:
@@ -54,6 +59,7 @@ services:
     environment:
       - ENV=PROD
       - LOG_LEVEL=DEBUG
+      - PYTHONHASHSEED=0
     restart: always
 
   eye:
@@ -62,4 +68,5 @@ services:
     environment:
       - ENV=PROD
       - LOG_LEVEL=DEBUG
+      - PYTHONHASHSEED=0
     restart: always
