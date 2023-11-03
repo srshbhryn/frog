@@ -6,7 +6,7 @@ import time
 from decimal import Decimal
 
 from frog.analyst import rpc as analyst_rpc
-from frog.ordermanager.nobitex import rpc as nobitex_rpc
+from frog.ordermanager.nobifake import rpc as nobitex_rpc
 from frog.ordermanager.types import Fill, OrderId
 from frog.square.rpc import RpcClient
 from frog.tradestore import rpc as tradestore_rpc
