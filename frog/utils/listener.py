@@ -2,7 +2,6 @@ import asyncio
 import pickle
 import dataclasses
 from datetime import timedelta
-import logging
 from queue import Queue
 from threading import Thread, Lock
 from typing import Any
@@ -44,17 +43,14 @@ class Listener:
         self.lock = Lock()
 
     def initialize(self) -> None:
-        logging.debug('initializing')
         Thread(
             target=self._background_fun,
             args=(self.event_queue, self.reminder_queue),
             daemon=True,
         ).start()
-        logging.debug('initialized')
 
     def wait(self) -> Event:
         _topic, _data = self.event_queue.get()
-        logging.debug('received event %s %s', _topic, _data)
         topic = Topic(_topic)
         if topic == REMINDER_TOPIC:
             data = pickle.loads(_data)
@@ -78,7 +74,6 @@ class Listener:
 
         async def get_and_create_tasks() -> None:
             while True:
-                logging.debug('waiting for reminder')
                 timeout, data = await reminder_queue.get()
 
                 async def _task_fun() -> None:
@@ -93,7 +88,6 @@ class Listener:
 
         async def main() -> None:
             while True:
-                logging.debug('waiting for external_event')
                 event_queue.put(await socket.recv_multipart())
 
         loop.create_task(get_and_create_tasks())
