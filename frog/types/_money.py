@@ -1,16 +1,21 @@
 from typing import Union, Callable
 
-from decimal import Decimal, ROUND_DOWN
+from decimal import Decimal, ROUND_DOWN, Context
+
+
+context = Context(prec=32 + 16)
 
 
 class _BaseMoney:
-    _type_to_mul_type_map: dict[Union[type, tuple[type]], Callable] = {}
-    _type_to_truediv_type_map: dict[Union[type, tuple[type]], Callable] = {}
-    _type_to_rtruediv_type_map: dict[Union[type, tuple[type]], Callable] = {}
+    _type_to_mul_type_map: dict[Callable, Callable] = {}
+    _type_to_truediv_type_map: dict[Callable, Callable] = {}
+    _type_to_rtruediv_type_map: dict[Callable, Callable] = {}
 
     def __init__(self, value: Union[Decimal, float, int, str]) -> None:
         def quantize(val):
-            return val.quantize(Decimal('1E-16'), rounding=ROUND_DOWN)
+            assert isinstance(val, Decimal)
+
+            return val.quantize(Decimal('1E-16'), rounding=ROUND_DOWN, context=context)
 
         if isinstance(value, Decimal):
             self._value = quantize(value)
@@ -74,70 +79,62 @@ class _BaseMoney:
         return self.__mul__(__value)
 
     def __mul__(self, __value):
+        if isinstance(__value, (Decimal, int)):
+            return self.__class__(self._value * __value)
+
+        if isinstance(__value, (float, str)):
+            return self.__class__(self._value * Decimal(str(__value)))
+
+        if isinstance(__value, self.__class__):
+            return self._value * __value._value
+
         for tp, fun in self.__class__._type_to_mul_type_map.items():
-            if isinstance(__value, tp):
-                return fun(self._value)
+            if isinstance(__value, tp()):
+                return fun(self, __value)
         raise NotImplementedError
 
     def __rtruediv__(self, __value):
         for tp, fun in self.__class__._type_to_rtruediv_type_map.items():
-            if isinstance(__value, tp):
-                return fun(self._value)
+            if isinstance(__value, tp()):
+                return fun(self, __value)
         raise NotImplementedError
 
     def __truediv__(self, __value):
+        if isinstance(__value, (Decimal, int)):
+            return self.__class__(self._value / __value)
+
+        if isinstance(__value, (float, str)):
+            return self.__class__(self._value / Decimal(str(__value)))
+
+        if isinstance(__value, self.__class__):
+            return self._value / __value._value
+
         for tp, fun in self.__class__._type_to_truediv_type_map.items():
-            if isinstance(__value, tp):
-                return fun(self._value)
+            if isinstance(__value, tp()):
+                return fun(self, __value)
         raise NotImplementedError
 
 
 class Price(_BaseMoney):
-    pass
+    _type_to_mul_type_map = {
+        lambda: Amount: lambda self, u: Value(self.as_decimal() * u.as_decimal()),
+    }
+    _type_to_rtruediv_type_map = {
+        lambda: Value: lambda self, u: Amount(self.as_decimal() * u.as_decimal()),
+    }
 
 
 class Amount(_BaseMoney):
-    pass
+    _type_to_mul_type_map = {
+        lambda: Price: lambda self, u: Value(self.as_decimal() * u.as_decimal()),
+    }
+    _type_to_rtruediv_type_map = {
+        lambda: Value: lambda self, u: Price(self.as_decimal() * u.as_decimal()),
+    }
 
 
 class Value(_BaseMoney):
-    pass
-
-
-_default_mul_map = {
-    (Decimal, int): lambda self, u: self.__class__(self.as_decimal() * u),
-    (float, str): lambda self, u: self.__class__(self.as_decimal() * Decimal(str(u))),
-}
-_default_truediv_map = {
-    (Decimal, int): lambda self, u: self.__class__(self.as_decimal() / u),
-    (float, str): lambda self, u: self.__class__(self.as_decimal() / Decimal(str(u))),
-}
-
-
-Price._type_to_mul_type_map = {
-    **_default_mul_map,
-    Amount: lambda self, u: Value(self.as_decimal() * u.as_decimal()),
-}
-Price._type_to_truediv_type_map = _default_truediv_map
-Price._type_to_rtruediv_type_map = {
-    Value: lambda self, u: Amount(self.as_decimal() * u.as_decimal()),
-}
-
-
-Amount._type_to_mul_type_map = {
-    **_default_mul_map,
-    Price: lambda self, u: Value(self.as_decimal() * u.as_decimal()),
-}
-Amount._type_to_truediv_type_map = _default_truediv_map
-Amount._type_to_rtruediv_type_map = {
-    Value: lambda self, u: Price(self.as_decimal() * u.as_decimal()),
-}
-
-
-Value._type_to_mul_type_map = _default_mul_map
-Value._type_to_truediv_type_map = {
-    **_default_truediv_map,
-    Amount: lambda self, u: Price(self.as_decimal() * u.as_decimal()),
-    Price: lambda self, u: Amount(self.as_decimal() * u.as_decimal()),
-}
-Value._type_to_rtruediv_type_map = {}
+    _type_to_truediv_type_map = {
+        lambda: Amount: lambda self, u: Price(self.as_decimal() * u.as_decimal()),
+        lambda: Price: lambda self, u: Amount(self.as_decimal() * u.as_decimal()),
+    }
