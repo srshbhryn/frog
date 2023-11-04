@@ -149,7 +149,7 @@ class Context:
             elif self.state == State.YY:
                 self.state = State.NY
 
-        elif pair == self.long_pair:
+        elif pair == self.short_pair:
             if self.state == State.NY:
                 self.state = State.NN
 
@@ -164,7 +164,7 @@ class Context:
             elif self.state == State.NY:
                 self.state = State.YY
 
-        elif pair == self.long_pair:
+        elif pair == self.short_pair:
             if self.state == State.NN:
                 self.state = State.NY
 
