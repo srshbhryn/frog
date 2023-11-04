@@ -9,7 +9,6 @@ context = Context(prec=32 + 16)
 class _BaseMoney:
     _type_to_mul_type_map: dict[Callable, Callable] = {}
     _type_to_truediv_type_map: dict[Callable, Callable] = {}
-    _type_to_rtruediv_type_map: dict[Callable, Callable] = {}
 
     def __init__(self, value: Union[Decimal, float, int, str]) -> None:
         def quantize(val):
@@ -93,12 +92,6 @@ class _BaseMoney:
                 return fun(self, __value)
         raise NotImplementedError
 
-    def __rtruediv__(self, __value):
-        for tp, fun in self.__class__._type_to_rtruediv_type_map.items():
-            if isinstance(__value, tp()):
-                return fun(self, __value)
-        raise NotImplementedError
-
     def __truediv__(self, __value):
         if isinstance(__value, (Decimal, int)):
             return self.__class__(self._value / __value)
@@ -119,22 +112,16 @@ class Price(_BaseMoney):
     _type_to_mul_type_map = {
         lambda: Amount: lambda self, u: Value(self.as_decimal() * u.as_decimal()),
     }
-    _type_to_rtruediv_type_map = {
-        lambda: Value: lambda self, u: Amount(self.as_decimal() * u.as_decimal()),
-    }
 
 
 class Amount(_BaseMoney):
     _type_to_mul_type_map = {
         lambda: Price: lambda self, u: Value(self.as_decimal() * u.as_decimal()),
     }
-    _type_to_rtruediv_type_map = {
-        lambda: Value: lambda self, u: Price(self.as_decimal() * u.as_decimal()),
-    }
 
 
 class Value(_BaseMoney):
     _type_to_truediv_type_map = {
-        lambda: Amount: lambda self, u: Price(self.as_decimal() * u.as_decimal()),
-        lambda: Price: lambda self, u: Amount(self.as_decimal() * u.as_decimal()),
+        lambda: Amount: lambda self, u: Price(self.as_decimal() / u.as_decimal()),
+        lambda: Price: lambda self, u: Amount(self.as_decimal() / u.as_decimal()),
     }
