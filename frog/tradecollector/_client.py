@@ -75,11 +75,15 @@ class TradeStore:
 
 
 class NobitexTradeCollector:
-
+    DELAY = 3
     def __init__(self) -> None:
         self.client = AsyncHTTPClient()
         self.requests = {
-            pair: HTTPRequest(f'https://api.nobitex.ir/v2/trades/{translate_asset_name(pair)}')
+            pair: HTTPRequest(
+                f'https://api.nobitex.ir/v2/trades/{translate_asset_name(pair)}',
+                connect_timeout=self.DELAY,
+                request_timeout=self.DELAY,
+            )
             for pair in ALL_PAIRS
         }
         ctx = zmq.asyncio.Context()
@@ -95,7 +99,7 @@ class NobitexTradeCollector:
                     ioloop.IOLoop.current().add_callback(self.fetch_market, pair=pair)
             except:
                 logging.exception('Error in nobitex trade collector')
-            await asyncio.sleep(3)
+            await asyncio.sleep(self.DELAY)
 
     async def fetch_market(self, pair: Pair) -> None:
         response = await self.client.fetch(
