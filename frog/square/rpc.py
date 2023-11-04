@@ -73,7 +73,13 @@ class RpcService:
                 args_kwargs = msgpack.loads(args_kwargs_b)
                 args = args_kwargs['args']
                 kwargs = args_kwargs['kwargs']
-
+                logging.debug(
+                    '%s wants to call %s with args: %s and kwargs: %s',
+                    str(client_identity),
+                    str(method_name),
+                    str(args),
+                    str(kwargs),
+                )
                 if method_name not in self.__class__.rpc_methods:
                     error_msg = f'No Such Method named as {method_name}'
                     logging.error(error_msg)
