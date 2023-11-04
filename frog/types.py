@@ -65,23 +65,35 @@ class Amount:
     def __init__(self, value: Union[Decimal, float, int, str]) -> None:
         if isinstance(value, Decimal):
             self._value = value
+            self._zero_check()
             return
 
         if isinstance(value, (float, int)):
             self._value = Decimal(str(value))
+            self._zero_check()
             return
 
         if isinstance(value, str):
             self._value = Decimal(value)
+            self._zero_check()
             return
 
         raise NotImplementedError
+
+    def _zero_check(self):
+        if self._value < Decimal('0e-20'):
+            self._value = Decimal('0')
 
     def encode(self):
         return (self._value,)
 
     def as_decimal(self):
         return self._value
+
+    def __eq__(self, __value: object) -> bool:
+        if not isinstance(__value, Amount):
+            raise NotImplementedError
+        return self - __value == Amount('0')
 
     def __neg__(self):
         return self * (-1)
@@ -132,20 +144,35 @@ class Price:
     def __init__(self, value: Union[Decimal, float, int, str]) -> None:
         if isinstance(value, Decimal):
             self._value = value
+            self._zero_check()
             return
 
         if isinstance(value, (float, int)):
             self._value = Decimal(str(value))
+            self._zero_check()
             return
 
         if isinstance(value, str):
             self._value = Decimal(value)
+            self._zero_check()
             return
 
         raise NotImplementedError
 
+    def _zero_check(self):
+        if self._value < Decimal('0e-20'):
+            self._value = Decimal('0')
+
     def encode(self):
         return (self._value,)
+
+    def __neg__(self):
+        return self * (-1)
+
+    def __eq__(self, __value: object) -> bool:
+        if not isinstance(__value, Price):
+            raise NotImplementedError
+        return self + -__value == Price('0')
 
     def __lt__(self, __value: 'Price') -> bool:
         return self._value.__lt__(__value._value)
@@ -192,23 +219,35 @@ class Value:
     def __init__(self, value: Union[Decimal, float, int, str]) -> None:
         if isinstance(value, Decimal):
             self._value = value
+            self._zero_check()
             return
 
         if isinstance(value, (float, int)):
             self._value = Decimal(str(value))
+            self._zero_check()
             return
 
         if isinstance(value, str):
             self._value = Decimal(value)
+            self._zero_check()
             return
 
         raise NotImplementedError
+
+    def _zero_check(self):
+        if self._value < Decimal('0e-20'):
+            self._value = Decimal('0')
 
     def encode(self):
         return (self._value,)
 
     def __neg__(self):
         return self * (-1)
+
+    def __eq__(self, __value: object) -> bool:
+        if not isinstance(__value, Value):
+            raise NotImplementedError
+        return self + -__value == Value('0')
 
     def __add__(self, __value: 'Value') -> 'Value':
         return Value(self._value + __value._value)
