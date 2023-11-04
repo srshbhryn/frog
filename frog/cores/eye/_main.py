@@ -2,7 +2,6 @@ import dataclasses
 import datetime
 import enum
 import logging
-import time
 from decimal import Decimal
 
 from frog.analyst import rpc as analyst_rpc
@@ -32,14 +31,6 @@ class Action:
         raise NotImplementedError
 
 
-class ChangeState(Action):
-    def __init__(self, state: State) -> None:
-        self._state = state
-
-    def __call__(self, context: 'Context') -> None:
-        context.state = self._state
-
-
 @dataclasses.dataclass(slots=True)
 class Topics:
     long_asset_orderbook: listener.Topic
@@ -55,11 +46,12 @@ class Client(RpcClient):
 
 
 class CancelOrder(Action):
-    def __init__(self, order: 'Order') -> None:
-        self.order = order
+    def __init__(self, order_id: OrderId) -> None:
+        self.order_id = order_id
 
     def __call__(self, context: 'Context') -> None:
-        raise NotImplementedError
+        logging.debug('cancelling order %s', str(self.order_id))
+        context.client.nobitex_client.cancel_order(self.order_id)
 
 
 @dataclasses.dataclass(slots=True)
@@ -180,14 +172,6 @@ class Context:
             elif self.state == State.YN:
                 self.state = State.YY
 
-class SleepForAWhile(Action):
-    def __init__(self, a_while: int) -> None:
-        super().__init__()
-        self.a_while = a_while
-
-    def __call__(self, _: Context) -> None:
-        time.sleep(self.a_while)
-
 
 class PlaceOrder(Action):
     def __init__(self, pair: Pair, amount: Amount, price: Price, side: Side) -> None:
@@ -198,6 +182,7 @@ class PlaceOrder(Action):
         super().__init__()
 
     def __call__(self, context: Context) -> None:
+        logging.debug('placing order')
         order_id = context.nobitex_client.place_order(
             nobitex_rpc.Order(
                 amount=self.amount,
@@ -214,6 +199,14 @@ class PlaceOrder(Action):
         )
         context.set_pair_order_to_open(self.pair)
         context.event_listener.add_reminder(context.wait_period, CancelOrder(order_id))
+        logging.debug(
+            'placed %s order on %s, amount: %s, price: %s.order id: %s.',
+            str(self.side),
+            str(self.pair.base),
+            str(self.amount),
+            str(self.price),
+            str(order_id),
+        )
 
 
 class CheckResidual(Action):
@@ -277,6 +270,7 @@ class UpdateOrderFill:
         self.fill = fill
 
     def __call__(self, context: Context) -> None:
+        logging.debug('update Order %s fill by %s.', str(self.fill.order_id), str(self.fill.amount))
         order = context.order_id_to_order_map.get(self.fill.order_id)
         if order is None:
             return
@@ -292,15 +286,16 @@ def main() -> None:
     topics = context.external_events_topics
 
     while True:
-        logging.debug('main loop')
+        logging.debug('Main Loop, State is %s', str(State.NN))
         if context.action_queue.has_action():
-            logging.debug('has action')
-            context.action_queue.pop_action()(context)
+            action = context.action_queue.pop_action()
+            logging.debug('There is Action: %s', action)
+            action(context)
             continue
 
-        logging.debug('waiting for event')
+        logging.debug('No action. Waiting for external event.')
         event = context.event_listener.wait()
-        logging.debug('received')
+        logging.debug('Received: %s.', str(event.topic))
 
         if event.topic == listener.REMINDER_TOPIC and isinstance(event.data, Action):
             event.data(context)
