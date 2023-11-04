@@ -92,8 +92,7 @@ class Context:
     order_id_to_order_map: dict[OrderId, Order]
     ####  config
     regression_len = 120
-    trade_threshold = Decimal('-0.002')
-    # trade_threshold = Decimal('0.002')
+    trade_threshold = Decimal('0.002')
     pricing_factor = Decimal('1.0')
     wait_period = datetime.timedelta(minutes=240)
     long_asset = Asset.BTC
