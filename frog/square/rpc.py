@@ -74,7 +74,7 @@ class RpcService:
                 args = args_kwargs['args']
                 kwargs = args_kwargs['kwargs']
                 logging.debug(
-                    '%s wants to call %s with args: %s and kwargs: %s',
+                    '%s wants to call "%s" with args: %s and kwargs: %s',
                     str(client_identity),
                     str(method_name),
                     str(args),
@@ -127,8 +127,11 @@ class RpcService:
 
 
 class RpcClient:
-    def __init__(self) -> None:
-        self.key = uuid.uuid4().hex[:16].encode()  # Client identity
+    def __init__(self, key: typing.Optional[str] = None) -> None:
+        if key is None:
+            self.key = uuid.uuid4().hex[:16].encode()  # Client identity
+        else:
+            self.key = key.encode()
 
         topic_to_response_queues_map: dict[bytes, Queue] = {}
         requests_queue: Queue = Queue(maxsize=128)
