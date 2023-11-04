@@ -61,17 +61,40 @@ class Service(OrderManger):
                     value = pos * price
                     assert isinstance(value, Value)
                     account_value += value
+                    logging.info('%s position amount: %s', str(asset), str(pos))
 
                 for order in self._order_id_to_order_map.values():
+                    if order.status in (
+                        OrderStatus.CANCELED,
+                        OrderStatus.FILLED,
+                    ):
+                        continue
                     if order.side == Side.LONG:
                         assert order.price is not None
-                        blocked_value = (order.amount - order.filled_amount) * order.price
+                        unfilled_amount = order.amount - order.filled_amount
+                        blocked_value = unfilled_amount * order.price
                         assert isinstance(blocked_value, Value)
                         account_value += blocked_value
+                        logging.info(
+                            '%s %s is blocked in %s long order with unfilled amount: %s.',
+                            str(blocked_value),
+                            str(self._quote_asset),
+                            str(order.pair.base),
+                            str(unfilled_amount),
+                        )
+
                     elif order.side == Side.SHORT:
-                        blocked_value = (order.amount - order.filled_amount) * get_asset_price(order.pair.base)
+                        unfilled_amount = order.amount - order.filled_amount
+                        blocked_value = unfilled_amount * get_asset_price(order.pair.base)
                         assert isinstance(blocked_value, Value)
                         account_value += blocked_value
+                        logging.info(
+                            '%s %s is blocked in short order, current value: %s.',
+                            str(unfilled_amount),
+                            str(order.pair.base),
+                            str(blocked_value),
+                        )
+
                     else:
                         logging.error('invalid side: %s', str(order.side))
                 logging.info('Account value, %s', str(account_value))
