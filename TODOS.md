@@ -5,5 +5,7 @@ RPC timeout is required
 
 Rpc Error handling need refactoring
 
+Make ordebook to only publish on change
+
 # Desiinng nobitexm OMS
     ## ?
