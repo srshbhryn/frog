@@ -115,7 +115,7 @@ class Context:
     def __init__(self) -> None:
         self.state = State.NN
         self.action_queue = ActionQueue()
-        self.client = Client()
+        self.client = Client('eye0000')
         self.order_id_to_order_map = {}
         self.external_events_topics = Topics(
             listener.Topic(f'order_{self.long_pair}'.encode()),
@@ -285,7 +285,7 @@ def main() -> None:
     topics = context.external_events_topics
 
     while True:
-        logging.debug('Main Loop, State is %s', str(State.NN))
+        logging.debug('Main Loop, State is %s', str(context.state))
         if context.action_queue.has_action():
             action = context.action_queue.pop_action()
             logging.debug('There is Action: %s', action)
