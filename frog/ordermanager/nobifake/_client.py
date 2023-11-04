@@ -63,6 +63,7 @@ class Service(OrderManger):
                     account_value += value
                     logging.info('%s position amount: %s', str(asset), str(pos))
 
+                logging.info('Account value, %s', str(account_value))
                 for order in self._order_id_to_order_map.values():
                     if order.status in (
                         OrderStatus.CANCELED,
@@ -74,7 +75,6 @@ class Service(OrderManger):
                         unfilled_amount = order.amount - order.filled_amount
                         blocked_value = unfilled_amount * order.price
                         assert isinstance(blocked_value, Value)
-                        account_value += blocked_value
                         logging.info(
                             '%s %s is blocked in %s long order with unfilled amount: %s.',
                             str(blocked_value),
@@ -87,7 +87,6 @@ class Service(OrderManger):
                         unfilled_amount = order.amount - order.filled_amount
                         blocked_value = unfilled_amount * get_asset_price(order.pair.base)
                         assert isinstance(blocked_value, Value)
-                        account_value += blocked_value
                         logging.info(
                             '%s %s is blocked in short order, current value: %s.',
                             str(unfilled_amount),
@@ -97,7 +96,6 @@ class Service(OrderManger):
 
                     else:
                         logging.error('invalid side: %s', str(order.side))
-                logging.info('Account value, %s', str(account_value))
             with lock:
                 _()
             time.sleep(10)
@@ -180,13 +178,6 @@ class Service(OrderManger):
         with self._lock:
             order_id = self._get_next_order_id()
             self._order_id_to_order_map[order_id] = order
-            if order.side == Side.SHORT:
-                self._add_to_position(order.pair.base, -order.amount)
-
-            elif order.side == Side.LONG:
-                self._quote_asset_balance += -order.amount * order.price
-            else:
-                raise ValueError
 
         return order_id
 
@@ -198,15 +189,6 @@ class Service(OrderManger):
                 return
             assert order.price is not None
             order.status = OrderStatus.CANCELED
-            unfilled_amount = order.amount - order.filled_amount
-            if order.side == Side.LONG:
-                releasing_value = unfilled_amount / order.price
-                assert isinstance(releasing_value, Value)
-                self._quote_asset_balance += releasing_value
-            elif order.side == Side.SHORT:
-                self._add_to_position(order.pair.base, unfilled_amount)
-            else:
-                raise ValueError
 
     @RpcService.register
     def get_order(self, order_id: OrderId) -> Order:
