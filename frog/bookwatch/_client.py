@@ -21,8 +21,9 @@ def fetch_books():
         )
         response.raise_for_status()
         data = response.json()
-    except Exception:
+    except:
         logging.exception('Error in BookWatch')
+        return []
     pairs = []
     books = []
     for pair in config.ALL_PAIRS:
