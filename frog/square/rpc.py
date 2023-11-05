@@ -50,6 +50,8 @@ class RpcService:
         return method
 
     def __init__(self) -> None:
+        self.response_queue: typing.Optional[Queue]  # client only
+        self.request_queue: typing.Optional[Queue]  # client only
         self.topic = b'service_' + self.topic
 
     def run_server(self) -> None:
@@ -67,6 +69,7 @@ class RpcService:
                     client_identity,
                     method_name_b,
                     args_kwargs_b,
+                    *_,
                 ) = requests_socket.recv_multipart()
 
                 method_name = method_name_b.decode()
@@ -109,8 +112,8 @@ class RpcService:
             )
 
     def init_client(self, requests_queue: Queue) -> None:
-        self.response_queue: Queue = Queue(maxsize=128)
-        self.request_queue: Queue = requests_queue
+        self.response_queue = Queue(maxsize=128)
+        self.request_queue = requests_queue
         for name in self.__class__.rpc_methods:
             setattr(self, name, self._request(name))
 
@@ -166,11 +169,11 @@ class RpcClient:
 
         while True:
             try:
-                (_, topic, code, return_value) = responses_socket.recv_multipart()
+                _, topic, code, return_value, *_ = responses_socket.recv_multipart()
                 topic_to_response_queues_map[topic].put_nowait(
                     (RpcCode.get_from_value(code), return_value),
                 )
-            except Exception:
+            except:
                 logging.exception('error in rpc client response')
 
     def run_client_requests_loop(self, requests_queue) -> None:
@@ -181,5 +184,5 @@ class RpcClient:
             try:
                 topic, *data = requests_queue.get()
                 requests_socket.send_multipart((topic, self.key, *data))
-            except Exception:
+            except:
                 logging.exception('error in rpc client request')
