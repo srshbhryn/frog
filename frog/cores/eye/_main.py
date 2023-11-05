@@ -52,6 +52,7 @@ class CancelOrder(Action):
     def __call__(self, context: 'Context') -> None:
         logging.debug('cancelling order %s', str(self.order_id))
         context.client.nobitex_client.cancel_order(self.order_id)
+        context.set_pair_order_to_close(context.order_id_to_order_map[self.order_id].pair)
 
 
 @dataclasses.dataclass(slots=True)
