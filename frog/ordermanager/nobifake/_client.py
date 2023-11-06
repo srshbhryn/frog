@@ -153,9 +153,11 @@ class Service(OrderManger):
 
         if order.side == Side.LONG:
             self._add_to_position(order.pair.base, effective_amount * self.FEE_FACTOR)
+            self._quote_asset_balance -= order.price * effective_amount
 
         elif order.side == Side.SHORT:
-            self._quote_asset_balance += trade.price * effective_amount * self.FEE_FACTOR
+            self._add_to_position(order.pair.base, -effective_amount)
+            self._quote_asset_balance += order.price * effective_amount * self.FEE_FACTOR
 
         else:
             raise ValueError
