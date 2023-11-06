@@ -1,3 +1,4 @@
+import logging
 import functools
 from decimal import Decimal
 from datetime import datetime
@@ -34,6 +35,17 @@ def get_linear_regression(
     timestamps_intersection_set = long_price_timestamps.intersection(
         short_price_timestamps,
     )
+    logging.debug(
+        'There are %d long prices, %d short prices and %d of them are in common timestamps.',
+        len(long_prices),
+        len(short_prices),
+        len(timestamps_intersection_set),
+    )
+    long_log_msg = ','.join([str(ts) for ts in long_price_timestamps])
+    short_log_msg = ','.join([str(ts) for ts in short_price_timestamps])
+    logging.debug(long_log_msg)
+    logging.debug(short_log_msg)
+
     long_returns = []
     short_returns = []
     timestamps_intersection = list(timestamps_intersection_set)
