@@ -75,4 +75,4 @@ class Service(RpcService):
             .values_list('minute', 'price')
         )
 
-        return {datetime.fromtimestamp(s + 1, tz=pytz.UTC): Price(d) for s, d in prices}
+        return {datetime.fromtimestamp(s + 60, tz=pytz.UTC): Price(d) for s, d in prices}
