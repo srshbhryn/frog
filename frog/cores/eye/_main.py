@@ -286,16 +286,13 @@ def main() -> None:
     topics = context.external_events_topics
 
     while True:
-        logging.debug('Main Loop, State is %s', str(context.state))
         if context.action_queue.has_action():
             action = context.action_queue.pop_action()
             logging.debug('There is Action: %s', action)
             action(context)
             continue
 
-        logging.debug('No action. Waiting for external event.')
         event = context.event_listener.wait()
-        logging.debug('Received: %s.', str(event.topic))
 
         if event.topic == listener.REMINDER_TOPIC and isinstance(event.data, Action):
             event.data(context)
