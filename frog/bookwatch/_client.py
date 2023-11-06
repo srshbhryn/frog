@@ -28,17 +28,16 @@ def fetch_books():
     books = []
     for pair in config.ALL_PAIRS:
         book = Book([], [])
-        price_factor = 10 if pair == Asset.RLS else 1
         if not translate_asset_name(pair) in data:
             continue
         for price, amount in data[translate_asset_name(pair)]['bids']:
             book.asks.append(
-                Entry(Price(float(price) * price_factor), Amount(float(amount))),
+                Entry(Price(float(price)), Amount(float(amount))),
             )
 
         for price, amount in data[translate_asset_name(pair)]['asks']:
             book.bids.append(
-                Entry(Price(float(price) * price_factor), Amount(float(amount))),
+                Entry(Price(float(price)), Amount(float(amount))),
             )
         pairs.append(pair)
         books.append(book)
