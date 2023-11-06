@@ -63,16 +63,16 @@ class Service(RpcService):
                 time__lt=end_timestamp.timestamp(),
             )
             .annotate(
-                second=models.functions.Cast(60 * models.F('time'), models.IntegerField()) / 60,
+                minute=60 * models.functions.Cast(models.F('time') / 60, models.IntegerField()),
             )
-            .values('second')
+            .values('minute')
             .annotate(
                 price=models.Sum(
                     models.F('amount') * models.F('price'),
                 )
                 / models.Sum(models.F('amount')),
             )
-            .values_list('second', 'price')
+            .values_list('minute', 'price')
         )
 
         return {datetime.fromtimestamp(s + 1, tz=pytz.UTC): Price(d) for s, d in prices}
