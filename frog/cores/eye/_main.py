@@ -95,7 +95,8 @@ class Context:
     regression_len = 120
     trade_threshold = Decimal('0.002')
     pricing_factor = Decimal('1.0')
-    wait_period = datetime.timedelta(minutes=240)
+    # wait_period = datetime.timedelta(minutes=240)
+    wait_period = datetime.timedelta(minutes=10)
     long_asset = Asset.BTC
     short_asset = Asset.ETH
     quote_asset = Asset.RLS
