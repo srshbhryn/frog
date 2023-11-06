@@ -23,3 +23,7 @@ TODO:
 
 
 integration with simpletrader (modified versino)
+
+
+### Analyitc Qs:
+    why there is a negative "beta"
