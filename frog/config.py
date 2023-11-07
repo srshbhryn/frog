@@ -22,8 +22,9 @@ ALL_PAIRS: list[Pair] = [
     Pair(Asset.ETH, Asset.USDT),
 ]
 
-LOG_LEVEL = logging._nameToLevel.get(os.getenv('LOG_LEVEL') or 'INFO' if IS_PROD else 'DEBUG')
-
+LOG_LEVEL = logging._nameToLevel.get(  # pylint: disable=protected-access
+    os.getenv('LOG_LEVEL') or 'INFO' if IS_PROD else 'DEBUG'
+)
 
 NOBITEX_TOKEN = os.getenv('NOBITEX_TOKEN', default='')
 NOBITEX_LEVERAGE = int(os.getenv('NOBITEX_LEVERAGE', default='1'))

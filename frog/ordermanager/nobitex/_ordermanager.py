@@ -23,6 +23,7 @@ class Service(OrderManger):
         self._client = NobitexClient(config.NOBITEX_TOKEN, 'frog1.1')
         self._orders: dict[OrderId, Order] = {}
         self._mutex = threading.Lock()
+        super().__init__()
 
     def _fill_collector_process(self) -> None:
         while True:
@@ -34,15 +35,14 @@ class Service(OrderManger):
                     min_oi = OrderId(0)
 
                 orders = self._client.request(
-                    typ=self._client.Type.private,
-                    method=self._client.Method.get,
+                    typ=self._client.Type.PRIVATE,
+                    method=self._client.Method.GET,
                     url=f'/market/orders/list?status=all&details=2&fromId={min_oi}',
                 )['orders']
             except:
                 logging.exception('Error in fetching "/market/orders/list"')
                 continue
-            self._mutex.acquire()
-            try:
+            with self._mutex:
                 for order in orders:
                     oid = order['id']
                     if oid not in self._orders:
@@ -61,8 +61,6 @@ class Service(OrderManger):
                     if order['status'] == 'Canceled':
                         self._orders[oid].status = OrderStatus.CANCELED
 
-            finally:
-                self._mutex.release()
 
     @RpcService.register
     def place_order(self, order: Order) -> OrderId:
@@ -78,27 +76,25 @@ class Service(OrderManger):
         else:
             data['execution'] = 'market'
 
-        self._mutex.acquire()
-        try:
-            placed_order = self._client.request(
-                typ=self._client.Type.private,
-                method=self._client.Method.post,
-                url='/margin/orders/add',
-                data=data,
-            )['order']
-            self._orders[placed_order['id']] = order
-            return placed_order['id']
-        except:
-            logging.exception('Error in fetching "/margin/orders/list"')
-            raise
-        finally:
-            self._mutex.release()
+        with self._mutex:
+            try:
+                placed_order = self._client.request(
+                    typ=self._client.Type.PRIVATE,
+                    method=self._client.Method.POST,
+                    url='/margin/orders/add',
+                    data=data,
+                )['order']
+                self._orders[placed_order['id']] = order
+                return placed_order['id']
+            except:
+                logging.exception('Error in fetching "/margin/orders/list"')
+                raise
 
     @RpcService.register
     def cancel_order(self, order_id: OrderId) -> None:
         self._client.request(
-            typ=self._client.Type.private,
-            method=self._client.Method.post,
+            typ=self._client.Type.PRIVATE,
+            method=self._client.Method.POST,
             url='/market/orders/update-status',
             data={
                 'order': order_id,
@@ -108,8 +104,5 @@ class Service(OrderManger):
 
     @RpcService.register
     def get_order(self, order_id: OrderId) -> Order:
-        self._mutex.acquire()
-        try:
+        with self._mutex:
             return self._orders[order_id]
-        finally:
-            self._mutex.release()

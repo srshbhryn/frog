@@ -33,13 +33,13 @@ class Client:
     base_url = 'https://api.nobitex.ir'
 
     class Type(enum.Enum):
-        public = 0
-        private = 1
+        PUBLIC = 0
+        PRIVATE = 1
 
     class Method(enum.Enum):
-        get = 'get'
-        post = 'post'
-        delete = 'delete'
+        GET = 'get'
+        POST = 'post'
+        DELETE = 'delete'
 
     class Error(Exception):
         pass
@@ -56,15 +56,15 @@ class Client:
 
     def initialize(self) -> None:
         self.sessions: dict[Client.Type, requests.Session] = {
-            Client.Type.public: requests.Session(),
-            Client.Type.private: requests.Session(),
+            Client.Type.PUBLIC: requests.Session(),
+            Client.Type.PRIVATE: requests.Session(),
         }
-        self.sessions[Client.Type.public].headers = {
+        self.sessions[Client.Type.PUBLIC].headers = {
             'content-type': 'application/json',
             'user-agent': f'TraderBot/{self.name}',
         }
-        self.sessions[Client.Type.private].headers = {
-            **self.sessions[Client.Type.public].headers,
+        self.sessions[Client.Type.PRIVATE].headers = {
+            **self.sessions[Client.Type.PUBLIC].headers,
             'Authorization': f'Token {self.token}',
         }
 

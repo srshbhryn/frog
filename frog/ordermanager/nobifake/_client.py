@@ -56,7 +56,10 @@ class Service(OrderManger):
                 for asset, pos in self._asset_to_position_amount_map.items():
                     price = get_asset_price(asset)
                     if price is None:
-                        logging.info('cant compute account value, %s price is not available.', asset)
+                        logging.info(
+                            'cant compute account value, %s price is not available.',
+                            str(asset),
+                        )
                         return
                     value = pos * price
                     assert isinstance(value, Value)
@@ -111,6 +114,7 @@ class Service(OrderManger):
         while True:
             try:
                 data = subscribe_socket.recv_multipart()
+                assert len(data) > 0
                 topic = data[0].decode()
                 if topic.startswith('trade_'):
                     topic_type = 'trade_'
@@ -135,7 +139,13 @@ class Service(OrderManger):
         def _get_order():
             for order_id, order in self._order_id_to_order_map.items():
                 assert order.price is not None
-                if not (order.pair == trade.pair and (order.status not in (OrderStatus.FILLED, OrderStatus.CANCELED))):
+                if any(
+                    (
+                        order.pair != trade.pair,
+                        order.status == OrderStatus.FILLED,
+                        order.status == OrderStatus.CANCELED,
+                    ),
+                ):
                     continue
                 if (order.side == Side.LONG and order.price > trade.price) or (
                     order.side == Side.SHORT and order.price < trade.price

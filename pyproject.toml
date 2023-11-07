@@ -17,6 +17,9 @@ inline-quotes = "single"
 multiline-quotes = "single"
 
 [tool.pylint.MASTER]
+ignore = "migrations"
+
+
 disable = [
   "broad-exception-caught",
   "bare-except",
@@ -27,7 +30,6 @@ disable = [
   "too-few-public-methods",
 
 ]
-
 [tool.pytype]
 keep_going = true
 platform = "linux"

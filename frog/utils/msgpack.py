@@ -15,7 +15,7 @@ class _EncoderStore:
     def encoder(cls, obj: Any) -> Union[bytes, msgpack.ExtType]:
         code = hash(type(obj).__name__)
         tp = cls.code_to_type_map.get(code)
-        if type(obj) != tp:
+        if tp is None or not isinstance(obj, tp):
             msg = f'Unknown type: {obj!r}'
             raise TypeError(msg)
         encode = getattr(tp, 'encode', None) or _EncoderStore.code_to_encoder_map[code]
