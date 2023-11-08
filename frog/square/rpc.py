@@ -1,6 +1,8 @@
 import enum
+import threading
 import logging
 import threading
+import time
 import typing
 import uuid
 from queue import Queue
@@ -41,6 +43,7 @@ class RpcError(Exception):
 class RpcService:
     topic: bytes
     rpc_methods: typing.ClassVar[dict[str, typing.Callable]] = {}
+    concurrency: int = 4
     Err = RpcError
 
     @classmethod
@@ -52,14 +55,11 @@ class RpcService:
         self.response_queue: typing.Optional[Queue]  # client only
         self.request_queue: typing.Optional[Queue]  # client only
         self.topic = b'service_' + self.topic
+        self._workers_url = f'inproc://{self.topic.decode()}'
 
-    def run_server(self) -> None:
-        requests_socket: zmq.Socket = get_zmq_context().socket(zmq.SUB)
-        requests_socket.subscribe(self.topic)
-        requests_socket.connect(f'tcp://{config.HIGHWAY_HOST}:{config.HIGHWAY_XPUB_PORT}')
-
-        responses_socket: zmq.Socket = get_zmq_context().socket(zmq.PUB)
-        responses_socket.connect(f'tcp://{config.HIGHWAY_HOST}:{config.HIGHWAY_XSUB_PORT}')
+    def worker(self):
+        socket: zmq.Socket = get_zmq_context().socket(zmq.REP)
+        socket.connect(self._workers_url)
 
         while True:
             try:
@@ -69,8 +69,7 @@ class RpcService:
                     method_name_b,
                     args_kwargs_b,
                     *_,
-                ) = requests_socket.recv_multipart()
-
+                ) = socket.recv_multipart()
                 method_name = method_name_b.decode()
                 args_kwargs = msgpack.loads(args_kwargs_b)
                 args = args_kwargs['args']
@@ -101,7 +100,7 @@ class RpcService:
                 logging.exception('Unhandled rpc Error')
                 code = RpcCode.UNEXPECTED_ERROR
                 return_value = f'{e}'.encode()
-            responses_socket.send_multipart(
+            socket.send_multipart(
                 (
                     client_identity,
                     topic,
@@ -109,6 +108,32 @@ class RpcService:
                     return_value,
                 ),
             )
+
+    def run_server(self) -> None:
+        dealer_socket: zmq.Socket = get_zmq_context().socket(zmq.DEALER)
+        dealer_socket.bind(self._workers_url)
+        requests_socket: zmq.Socket = get_zmq_context().socket(zmq.SUB)
+        requests_socket.subscribe(self.topic)
+        requests_socket.connect(f'tcp://{config.HIGHWAY_HOST}:{config.HIGHWAY_XPUB_PORT}')
+
+        responses_socket: zmq.Socket = get_zmq_context().socket(zmq.PUB)
+        responses_socket.connect(f'tcp://{config.HIGHWAY_HOST}:{config.HIGHWAY_XSUB_PORT}')
+        for _ in range(self.concurrency):
+            threading.Thread(target=self.worker, daemon=True).start()
+        poller = zmq.Poller()
+        poller = zmq.Poller()
+
+        poller.register(dealer_socket, zmq.POLLIN)
+        poller.register(requests_socket, zmq.POLLIN)
+
+        while True:
+            socks = dict(poller.poll())
+
+            if socks.get(dealer_socket) == zmq.POLLIN:
+                responses_socket.send_multipart(dealer_socket.recv_multipart()[1:])
+
+            if socks.get(requests_socket) == zmq.POLLIN:
+                dealer_socket.send_multipart([b''] + requests_socket.recv_multipart())
 
     def init_client(self, requests_queue: Queue) -> None:
         self.response_queue = Queue(maxsize=128)
@@ -148,18 +173,19 @@ class RpcClient:
         ):
             service.init_client(requests_queue)
             topic_to_response_queues_map[service.topic] = service.response_queue
+        threading.Thread(
+            target=self.run_client_requests_loop,
+            args=(requests_queue,),
+            daemon=True,
+        ).start()
 
         threading.Thread(
             target=self.run_client_responses_loop,
             args=(topic_to_response_queues_map,),
             daemon=True,
         ).start()
-        threading.Thread(
-            target=self.run_client_requests_loop,
-            args=(requests_queue,),
-            daemon=True,
-        ).start()
-        # time.sleep(1)
+        time.sleep(0.1)  # TODO: fixme (This is because to make sure
+        # request socket is connected to XSUB before sending any request)
 
     def run_client_responses_loop(self, topic_to_response_queues_map) -> None:
         responses_socket: zmq.Socket = get_zmq_context().socket(zmq.SUB)
