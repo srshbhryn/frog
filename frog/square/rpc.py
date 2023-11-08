@@ -1,7 +1,6 @@
 import enum
 import threading
 import logging
-import threading
 import time
 import typing
 import uuid
@@ -81,6 +80,7 @@ class RpcService:
                     str(args),
                     str(kwargs),
                 )
+                kwargs['client_identity'] = client_identity.decode()
                 if method_name not in self.__class__.rpc_methods:
                     error_msg = f'No Such Method named as {method_name}'
                     logging.error(error_msg)
@@ -121,8 +121,6 @@ class RpcService:
         for _ in range(self.concurrency):
             threading.Thread(target=self.worker, daemon=True).start()
         poller = zmq.Poller()
-        poller = zmq.Poller()
-
         poller.register(dealer_socket, zmq.POLLIN)
         poller.register(requests_socket, zmq.POLLIN)
 
