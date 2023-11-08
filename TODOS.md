@@ -10,19 +10,19 @@ Rpc Error handling need refactoring
     ## ?
 
 
-
+# ADD multiple accounts for nobifake
 
 # Apparently Cancellation Won't work,
 
 RUNNIG SAME ALGORITHM WHILE ONE IS WATING MIGHT WORK TOO
 
 TODO:
-    make services scalable
+    make services scalable (added threads, its scalable enough for now)
     RUN FOR OTHER PAIRS: (BTC,ETH,USDT) and (DOGE, SHIB, RLS)
 
 
 
-integration with simpletrader (modified versino)
+integration with simpletrader (modified versino) ??? (should i?)
 
 
 ### Analyitc Qs:
