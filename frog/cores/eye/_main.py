@@ -185,12 +185,10 @@ class PlaceOrder(Action):
     def __call__(self, context: Context) -> None:
         logging.debug('placing order')
         order_id = context.nobitex_client.place_order(
-            nobitex_rpc.Order(
-                amount=self.amount,
-                pair=self.pair,
-                side=self.side,
-                price=self.price,
-            )
+            pair=self.pair,
+            side=self.side,
+            amount=self.amount,
+            price=self.price,
         )
         context.order_id_to_order_map[order_id] = Order(
             amount=self.amount,

@@ -51,7 +51,7 @@ class OrderManger(RpcService):
         raise NotImplementedError
 
     @RpcService.register
-    def place_order(self, order: Order) -> OrderId:
+    def place_order(self, pair: Pair, side: Side, amount: Amount, price: Price) -> OrderId:
         raise NotImplementedError
 
     @RpcService.register

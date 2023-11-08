@@ -10,7 +10,7 @@ from frog.ordermanager.types import OrderManger, OrderId, Order, Pair, OrderStat
 from frog.square.rpc import RpcService
 from frog.utils import msgpack
 from frog.utils.shortcuts import get_zmq_context
-from frog.types import Amount, Value, Asset
+from frog.types import Amount, Value, Asset, Price
 from frog.tradecollector import Trade
 from frog.bookwatch.types import Book
 
@@ -184,9 +184,8 @@ class Service(OrderManger):
         return OrderId(self._next_order_id)
 
     @RpcService.register
-    def place_order(self, order: Order) -> OrderId:
-        # For now, only supporting limit orders
-        assert order.price is not None
+    def place_order(self, pair: Pair, side: Side, amount: Amount, price: Price) -> OrderId:
+        order = Order(pair, side, amount, price)
         with self._lock:
             order_id = self._get_next_order_id()
             self._order_id_to_order_map[order_id] = order
