@@ -1,7 +1,6 @@
 import enum
 import logging
 import threading
-import time
 import typing
 import uuid
 from queue import Queue
@@ -160,7 +159,7 @@ class RpcClient:
             args=(requests_queue,),
             daemon=True,
         ).start()
-        time.sleep(1)
+        # time.sleep(1)
 
     def run_client_responses_loop(self, topic_to_response_queues_map) -> None:
         responses_socket: zmq.Socket = get_zmq_context().socket(zmq.SUB)
