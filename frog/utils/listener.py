@@ -1,15 +1,13 @@
-import asyncio
+import logging
 import pickle
 import dataclasses
 import threading
 from datetime import timedelta
 from queue import Queue
-from threading import Thread, Lock
+from threading import Thread
 from typing import Any
-import time
 
 import zmq
-import zmq.asyncio as async_zmq
 
 from frog import config
 from frog.utils import msgpack
@@ -49,7 +47,9 @@ class Listener:
         ).start()
 
     def wait(self) -> Event:
+        logging.debug('waiting for event...')
         _topic, _data = self.event_queue.get()
+        logging.debug('received %s', _topic)
         topic = Topic(_topic)
         if topic == REMINDER_TOPIC:
             data = pickle.loads(_data)
@@ -63,6 +63,8 @@ class Listener:
         event_queue: Queue,
     ) -> None:
         socket = zmq.Context().socket(zmq.SUB)
+        for topic in self.topics:
+            socket.subscribe(topic)
         socket.connect(self.HIGHWAY_URL)
         while True:
             event_queue.put(socket.recv_multipart())
