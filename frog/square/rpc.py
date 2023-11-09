@@ -80,15 +80,17 @@ class RpcService:
                     str(args),
                     str(kwargs),
                 )
-                kwargs['client_identity'] = client_identity.decode()
-                if method_name not in self.__class__.rpc_methods:
+                method = self.__class__.rpc_methods.get(method_name)
+                if method is None:
                     error_msg = f'No Such Method named as {method_name}'
                     logging.error(error_msg)
                     return_value = error_msg.encode()
                     code = RpcCode.INVALID_METHOD
                 else:
+                    if 'kwargs' in method.__code__.co_varnames:
+                        kwargs['client_identity'] = client_identity.decode()
                     return_value = msgpack.dumps(
-                        self.__class__.rpc_methods[method_name](self, *args, **kwargs),
+                        method(self, *args, **kwargs),
                     )
                     code = RpcCode.OK
 
