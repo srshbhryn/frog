@@ -92,15 +92,15 @@ class Context:
     state: State
     order_id_to_order_map: dict[OrderId, Order]
     ####  config
-    regression_len = 120
-    trade_threshold = Decimal('0.002')
-    pricing_factor = Decimal('1.0')
-    # wait_period = datetime.timedelta(minutes=240)
-    wait_period = datetime.timedelta(minutes=10)
-    long_asset = Asset.BTC
-    short_asset = Asset.ETH
-    quote_asset = Asset.RLS
-    base_trade_value = Value('500_000_0')
+
+    regression_len: int
+    trade_threshold: Decimal
+    pricing_factor: Decimal
+    wait_period: datetime.timedelta
+    long_asset: Asset
+    short_asset: Asset
+    quote_asset: Asset
+    base_trade_value: Value
 
     @property
     def analyst(self) -> analyst_rpc.Service:
@@ -114,10 +114,30 @@ class Context:
     def nobitex_client(self) -> nobitex_rpc.Service:
         return self.client.nobitex_client
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        regression_len: int,
+        trade_threshold: Decimal,
+        pricing_factor: Decimal,
+        wait_period: datetime.timedelta,
+        long_asset: Asset,
+        short_asset: Asset,
+        quote_asset: Asset,
+        base_trade_value: Value,
+        client_identity: str,
+    ) -> None:
+        self.regression_len = regression_len
+        self.trade_threshold = trade_threshold
+        self.pricing_factor = pricing_factor
+        self.wait_period = wait_period
+        self.long_asset = long_asset
+        self.short_asset = short_asset
+        self.quote_asset = quote_asset
+        self.base_trade_value = base_trade_value
+
         self.state = State.NN
         self.action_queue = ActionQueue()
-        self.client = Client('eye0000')
+        self.client = Client(client_identity)
         self.order_id_to_order_map = {}
         self.external_events_topics = Topics(
             listener.Topic(f'order_{self.long_pair}'.encode()),
@@ -173,6 +193,45 @@ class Context:
             elif self.state == State.YN:
                 self.state = State.YY
 
+    def run(self):
+        while True:
+            if self.action_queue.has_action():
+                action = self.action_queue.pop_action()
+                logging.debug('There is Action: %s', action)
+                action(self)
+                continue
+
+            event = self.event_listener.wait()
+
+            if event.topic == listener.REMINDER_TOPIC and isinstance(event.data, Action):
+                event.data(self)
+                continue
+
+            if self.state == State.NN and event.topic in (
+                self.external_events_topics.long_asset_orderbook,
+                self.external_events_topics.short_asset_orderbook,
+            ):
+                CheckResidual()(self)
+                continue
+
+            if self.state != State.NN and event.topic in (
+                self.external_events_topics.long_asset_orderbook,
+                self.external_events_topics.short_asset_orderbook,
+            ):
+                continue
+
+            if self.state != State.NN and event.topic in (
+                self.external_events_topics.long_asset_fill,
+                self.external_events_topics.short_asset_fill,
+            ):
+                UpdateOrderFill(event.data)(self)
+                continue
+
+            logging.error(
+                'Unhandled "(state, event)"  pair: %s %s',
+                event,
+                self.state,
+            )
 
 class PlaceOrder(Action):
     def __init__(self, pair: Pair, amount: Amount, price: Price, side: Side) -> None:
@@ -281,44 +340,15 @@ class UpdateOrderFill:
 
 
 def main() -> None:
-    context = Context()
-    topics = context.external_events_topics
-
-    while True:
-        if context.action_queue.has_action():
-            action = context.action_queue.pop_action()
-            logging.debug('There is Action: %s', action)
-            action(context)
-            continue
-
-        event = context.event_listener.wait()
-
-        if event.topic == listener.REMINDER_TOPIC and isinstance(event.data, Action):
-            event.data(context)
-            continue
-
-        if context.state == State.NN and event.topic in (
-            topics.long_asset_orderbook,
-            topics.short_asset_orderbook,
-        ):
-            CheckResidual()(context)
-            continue
-
-        if context.state != State.NN and event.topic in (
-            topics.long_asset_orderbook,
-            topics.short_asset_orderbook,
-        ):
-            continue
-
-        if context.state != State.NN and event.topic in (
-            topics.long_asset_fill,
-            topics.short_asset_fill,
-        ):
-            UpdateOrderFill(event.data)(context)
-            continue
-
-        logging.error(
-            'Unhandled "(state, event)"  pair: %s %s',
-            event,
-            context.state,
-        )
+    context = Context(
+        120,
+        Decimal('0.002'),
+        Decimal('1.0'),
+        datetime.timedelta(minutes=120),
+        Asset.BTC,
+        Asset.ETH,
+        Asset.RLS,
+        Value('500_000_0'),
+        'eye000',
+    )
+    context.run()
