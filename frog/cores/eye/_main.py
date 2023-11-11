@@ -35,8 +35,7 @@ class Action:
 class Topics:
     long_asset_orderbook: listener.Topic
     short_asset_orderbook: listener.Topic
-    long_asset_fill: listener.Topic
-    short_asset_fill: listener.Topic
+    account_fill: listener.Topic
 
 
 class Client(RpcClient):
@@ -142,15 +141,13 @@ class Context:
         self.external_events_topics = Topics(
             listener.Topic(f'order_{self.long_pair}'.encode()),
             listener.Topic(f'order_{self.short_pair}'.encode()),
-            listener.Topic(f'fill_{self.long_pair}'.encode()),
-            listener.Topic(f'fill_{self.short_pair}'.encode()),
+            listener.Topic(f'fill_{client_identity}'.encode()),
         )
         self.event_listener = listener.Listener(
             [
                 self.external_events_topics.long_asset_orderbook,
                 self.external_events_topics.short_asset_orderbook,
-                self.external_events_topics.long_asset_fill,
-                self.external_events_topics.short_asset_fill,
+                self.external_events_topics.account_fill,
             ],
         )
         self.event_listener.initialize()
@@ -220,10 +217,7 @@ class Context:
             ):
                 continue
 
-            if self.state != State.NN and event.topic in (
-                self.external_events_topics.long_asset_fill,
-                self.external_events_topics.short_asset_fill,
-            ):
+            if self.state != State.NN and event.topic == self.external_events_topics.account_fill:
                 UpdateOrderFill(event.data)(self)
                 continue
 
@@ -232,6 +226,7 @@ class Context:
                 event,
                 self.state,
             )
+
 
 class PlaceOrder(Action):
     def __init__(self, pair: Pair, amount: Amount, price: Price, side: Side) -> None:
@@ -281,7 +276,12 @@ class CheckResidual(Action):
             logging.exception('PriceIsNotAvailable')
             return
 
-        regression = context.analyst.get_regression(context.long_pair, context.short_pair, start_time, end_time)
+        regression = context.analyst.get_regression(
+            context.long_pair,
+            context.short_pair,
+            start_time,
+            end_time,
+        )
 
         residual = (
             long_price / regression.long_price_normalizer

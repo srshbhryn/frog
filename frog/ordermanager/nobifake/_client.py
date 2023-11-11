@@ -45,9 +45,9 @@ class AccountManager:
         self._create_account_if_does_not_exist(account_id)
         self._order_id_to_account_id_map[order_id] = account_id
 
-    def get_order_account(self, order_id: OrderId) -> Account:
+    def get_order_account(self, order_id: OrderId) -> tuple[AccountId, Account]:
         account_id = self._order_id_to_account_id_map[order_id]
-        return self._account_id_account_map[account_id]
+        return account_id, self._account_id_account_map[account_id]
 
     def does_order_belongs_to_account(self, order_id: OrderId, account_id: AccountId) -> bool:
         return self._order_id_to_account_id_map.get(order_id) == account_id
@@ -214,7 +214,7 @@ class Service(OrderManger):
         order.filled_amount += effective_amount
         if order.filled_amount == order.amount:
             order.status = OrderStatus.FILLED
-        account = self._account_manager.get_order_account(order_id)
+        account_id, account = self._account_manager.get_order_account(order_id)
         if order.side == Side.LONG:
             account.asset_to_position_map[order.pair.base] += effective_amount * self.FEE_FACTOR
             account.quote_balance -= order.price * effective_amount
@@ -228,7 +228,7 @@ class Service(OrderManger):
 
         publish_socket.send_multipart(
             (
-                f'fill_{order.pair}'.encode(),
+                f'fill_{account_id}'.encode(),
                 msgpack.dumps(Fill(order_id, effective_amount)),
             )
         )
