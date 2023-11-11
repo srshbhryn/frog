@@ -84,73 +84,77 @@ class Service(OrderManger):
             return (book.asks[0].price + book.bids[0].price) / 2
 
         while True:
+            try:
 
-            def _(account_id: AccountId, account: Account):
-                account_value = account.quote_balance
-                for asset, pos in account.asset_to_position_map.items():
-                    if pos == Amount(0):
-                        continue
-                    price = get_asset_price(asset)
-                    if price is None:
+                def _(account_id: AccountId, account: Account):
+                    account_value = account.quote_balance
+                    for asset, pos in account.asset_to_position_map.items():
+                        if pos == Amount(0):
+                            continue
+                        price = get_asset_price(asset)
+                        if price is None:
+                            logging.info(
+                                'acc: %s\t cant compute account value, %s price is not available.',
+                                account_id,
+                                str(asset),
+                            )
+                            return
+                        value = pos * price
+                        assert isinstance(value, Value)
+                        account_value += value
                         logging.info(
-                            'acc: %s\t cant compute account value, %s price is not available.',
+                            'acc: %s\t%s position amount: %s',
                             account_id,
                             str(asset),
+                            str(pos),
                         )
-                        return
-                    value = pos * price
-                    assert isinstance(value, Value)
-                    account_value += value
-                    logging.info(
-                        'acc: %s\t%s position amount: %s',
-                        account_id,
-                        str(asset),
-                        str(pos),
-                    )
 
-                logging.info('acc: %s\tvalue, %s', account_id, str(account_value))
-                for order_id, order in self._order_id_to_order_map.items():
-                    if order.status in (
-                        OrderStatus.CANCELED,
-                        OrderStatus.FILLED,
-                    ) or not self._account_manager.does_order_belongs_to_account(
-                        order_id,
-                        account_id,
-                    ):
-                        continue
-
-                    if order.side == Side.LONG:
-                        assert order.price is not None
-                        unfilled_amount = order.amount - order.filled_amount
-                        blocked_value = unfilled_amount * order.price
-                        assert isinstance(blocked_value, Value)
-                        logging.info(
-                            'acc: %s\t%s %s is blocked in %s long order with unfilled amount: %s.',
+                    logging.info('acc: %s\tvalue, %s', account_id, str(account_value))
+                    for order_id, order in self._order_id_to_order_map.items():
+                        if order.status in (
+                            OrderStatus.CANCELED,
+                            OrderStatus.FILLED,
+                        ) or not self._account_manager.does_order_belongs_to_account(
+                            order_id,
                             account_id,
-                            str(blocked_value),
-                            str(self._quote_asset),
-                            str(order.pair.base),
-                            str(unfilled_amount),
-                        )
+                        ):
+                            continue
 
-                    elif order.side == Side.SHORT:
-                        unfilled_amount = order.amount - order.filled_amount
-                        blocked_value = unfilled_amount * get_asset_price(order.pair.base)
-                        assert isinstance(blocked_value, Value)
-                        logging.info(
-                            'acc: %s\t%s %s is blocked in short order, current value: %s.',
-                            account_id,
-                            str(unfilled_amount),
-                            str(order.pair.base),
-                            str(blocked_value),
-                        )
+                        if order.side == Side.LONG:
+                            assert order.price is not None
+                            unfilled_amount = order.amount - order.filled_amount
+                            blocked_value = unfilled_amount * order.price
+                            assert isinstance(blocked_value, Value)
+                            logging.info(
+                                'acc: %s\t%s %s is blocked in %s long order with unfilled amount: %s.',
+                                account_id,
+                                str(blocked_value),
+                                str(self._quote_asset),
+                                str(order.pair.base),
+                                str(unfilled_amount),
+                            )
 
-                    else:
-                        logging.error('acc: %s\tinvalid side: %s', account_id, str(order.side))
+                        elif order.side == Side.SHORT:
+                            unfilled_amount = order.amount - order.filled_amount
+                            blocked_value = unfilled_amount * get_asset_price(order.pair.base)
+                            assert isinstance(blocked_value, Value)
+                            logging.info(
+                                'acc: %s\t%s %s is blocked in short order, current value: %s.',
+                                account_id,
+                                str(unfilled_amount),
+                                str(order.pair.base),
+                                str(blocked_value),
+                            )
 
-            for account_id, account in self._account_manager.items():
-                with lock:
-                    _(account_id, account)
+                        else:
+                            logging.error('acc: %s\tinvalid side: %s', account_id, str(order.side))
+
+                for account_id, account in self._account_manager.items():
+                    with lock:
+                        _(account_id, account)
+            except:
+                logging.exception('Exception in Reporter')
+
             time.sleep(10)
 
     def _background(self, lock: threading.Lock):

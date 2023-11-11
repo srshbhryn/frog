@@ -337,18 +337,3 @@ class UpdateOrderFill:
             return
         context.order_id_to_order_map.pop(self.fill.order_id)
         context.set_pair_order_to_close(order.pair)
-
-
-def main() -> None:
-    context = Context(
-        120,
-        Decimal('0.002'),
-        Decimal('1.0'),
-        datetime.timedelta(minutes=120),
-        Asset.BTC,
-        Asset.ETH,
-        Asset.RLS,
-        Value('500_000_0'),
-        'eye000',
-    )
-    context.run()

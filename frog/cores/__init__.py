@@ -1,1 +1,0 @@
-from .eye._main import main as eye_main

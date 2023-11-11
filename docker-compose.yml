@@ -58,7 +58,7 @@ services:
     command: "python bin/nobifake_oms.py"
     environment:
       - ENV=PROD
-      - LOG_LEVEL=DEBUG
+      - LOG_LEVEL=INFO
       - PYTHONHASHSEED=0
     restart: always
 
@@ -67,6 +67,6 @@ services:
     command: "python bin/eye.py"
     environment:
       - ENV=PROD
-      - LOG_LEVEL=DEBUG
+      - LOG_LEVEL=INFO
       - PYTHONHASHSEED=0
     restart: always

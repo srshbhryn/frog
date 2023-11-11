@@ -20,6 +20,10 @@ ALL_PAIRS: list[Pair] = [
     Pair(Asset.BTC, Asset.USDT),
     Pair(Asset.ETH, Asset.RLS),
     Pair(Asset.ETH, Asset.USDT),
+    Pair(Asset.DOGE, Asset.RLS),
+    Pair(Asset.DOGE, Asset.USDT),
+    Pair(Asset.SHIB, Asset.RLS),
+    Pair(Asset.SHIB, Asset.USDT),
 ]
 
 LOG_LEVEL = logging._nameToLevel.get(  # pylint: disable=protected-access
