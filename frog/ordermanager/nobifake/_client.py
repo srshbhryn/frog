@@ -3,6 +3,7 @@ import time
 import threading
 import typing
 import dataclasses
+import decimal
 
 import zmq
 
@@ -18,18 +19,13 @@ from frog.bookwatch.types import Book
 
 AccountId = typing.NewType('AccountId', str)
 
-INITIAL_QUOTE_BALANCE = Value('10_000_000_0')
-QUOTE_ASSET = Asset.RLS
-
 
 @dataclasses.dataclass
 class Account:
-    quote_balance: Value
-    asset_to_position_map: dict
+    asset_to_balance_map: dict
 
     def __init__(self) -> None:
-        self.quote_balance = INITIAL_QUOTE_BALANCE
-        self.asset_to_position_map = {asset: Amount(0) for asset in Asset}
+        self.asset_to_balance_map = {asset: Amount('0') for asset in Asset}
 
 
 class AccountManager:
@@ -57,14 +53,13 @@ class AccountManager:
 
 class Service(OrderManger):
     topic = b'nobifake'
-    FEE_FACTOR = 0.999
+    FEE_FACTOR = decimal.Decimal('0.999')
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._order_id_to_order_map: dict[OrderId, Order] = {}
         self._next_order_id = 0
-        self._asset_to_orderbook_snapshot_map: dict[Asset, Book] = {}
-        self._quote_asset = QUOTE_ASSET
+        self._pair_to_orderbook_snapshot_map: dict[Pair, Book] = {}
         self._account_manager = AccountManager()
         super().__init__()
 
@@ -76,82 +71,26 @@ class Service(OrderManger):
     def _fill_collector_process(self) -> None:
         return None
 
+    def _log_account_balances(self, account_id: AccountId, account: Account):
+        log_message = f'acc:{account_id},'
+        for asset, balance in account.asset_to_balance_map.items():
+            log_message += f'{asset}:{balance},'
+        logging.info(log_message)
+
     def _reporter(self, lock: threading.Lock):
-        def get_asset_price(asset):
-            book = self._asset_to_orderbook_snapshot_map.get(asset)
-            if book is None or len(book.asks) == 0 or len(book.bids) == 0:
-                return None
-            return (book.asks[0].price + book.bids[0].price) / 2
 
         while True:
             try:
-
-                def _(account_id: AccountId, account: Account):
-                    account_value = account.quote_balance
-                    for asset, pos in account.asset_to_position_map.items():
-                        if pos == Amount(0):
-                            continue
-                        price = get_asset_price(asset)
-                        if price is None:
-                            logging.info(
-                                'acc: %s\t cant compute account value, %s price is not available.',
-                                account_id,
-                                str(asset),
-                            )
-                            return
-                        value = pos * price
-                        assert isinstance(value, Value)
-                        account_value += value
-                        logging.info(
-                            'acc: %s\t%s position amount: %s',
-                            account_id,
-                            str(asset),
-                            str(pos),
-                        )
-
-                    logging.info('acc: %s\tvalue, %s', account_id, str(account_value))
-                    for order_id, order in self._order_id_to_order_map.items():
-                        if order.status in (
-                            OrderStatus.CANCELED,
-                            OrderStatus.FILLED,
-                        ) or not self._account_manager.does_order_belongs_to_account(
-                            order_id,
-                            account_id,
-                        ):
-                            continue
-
-                        if order.side == Side.LONG:
-                            assert order.price is not None
-                            unfilled_amount = order.amount - order.filled_amount
-                            blocked_value = unfilled_amount * order.price
-                            assert isinstance(blocked_value, Value)
-                            logging.info(
-                                'acc: %s\t%s %s is blocked in %s long order with unfilled amount: %s.',
-                                account_id,
-                                str(blocked_value),
-                                str(self._quote_asset),
-                                str(order.pair.base),
-                                str(unfilled_amount),
-                            )
-
-                        elif order.side == Side.SHORT:
-                            unfilled_amount = order.amount - order.filled_amount
-                            blocked_value = unfilled_amount * get_asset_price(order.pair.base)
-                            assert isinstance(blocked_value, Value)
-                            logging.info(
-                                'acc: %s\t%s %s is blocked in short order, current value: %s.',
-                                account_id,
-                                str(unfilled_amount),
-                                str(order.pair.base),
-                                str(blocked_value),
-                            )
-
-                        else:
-                            logging.error('acc: %s\tinvalid side: %s', account_id, str(order.side))
-
                 for account_id, account in self._account_manager.items():
                     with lock:
-                        _(account_id, account)
+                        self._log_account_balances(account_id, account)
+
+                for pair, book in self._pair_to_orderbook_snapshot_map.items():
+                    log_message = f'pir:{pair}\t'
+                    log_message += f'best bid: {book.bids[0].price}\t'
+                    log_message += f'best ask: {book.asks[0].price}'
+                    logging.info(log_message)
+
             except:
                 logging.exception('Exception in Reporter')
 
@@ -159,7 +98,8 @@ class Service(OrderManger):
 
     def _background(self, lock: threading.Lock):
         subscribe_socket: zmq.Socket = get_zmq_context().socket(zmq.SUB)
-        subscribe_socket.subscribe('')
+        subscribe_socket.subscribe('order_')
+        subscribe_socket.subscribe('trade_')
         subscribe_socket.connect(f'tcp://{config.HIGHWAY_HOST}:{config.HIGHWAY_XPUB_PORT}')
 
         publish_socket: zmq.Socket = get_zmq_context().socket(zmq.PUB)
@@ -176,15 +116,13 @@ class Service(OrderManger):
                 elif topic.startswith('order_'):
                     topic_type = 'order_'
                 else:
-                    continue
+                    raise ValueError
                 pair = Pair.get_from_str(topic.replace(topic_type, ''))
-                if pair.quote != self._quote_asset:
-                    continue
                 if topic_type == 'trade_':
                     with lock:
                         self._update_orders(publish_socket, msgpack.loads(data[1]))
                 else:  # topic_type == 'order'
-                    self._asset_to_orderbook_snapshot_map[pair.base] = msgpack.loads(data[1])
+                    self._pair_to_orderbook_snapshot_map[pair] = msgpack.loads(data[1])
 
             except:
                 logging.exception('Error In nobifake')
@@ -215,13 +153,18 @@ class Service(OrderManger):
         if order.filled_amount == order.amount:
             order.status = OrderStatus.FILLED
         account_id, account = self._account_manager.get_order_account(order_id)
+
         if order.side == Side.LONG:
-            account.asset_to_position_map[order.pair.base] += effective_amount * self.FEE_FACTOR
-            account.quote_balance -= order.price * effective_amount
+            account.asset_to_balance_map[order.pair.base] += effective_amount * self.FEE_FACTOR
+            account.asset_to_balance_map[order.pair.quote] -= Amount(
+                (order.price * effective_amount).as_decimal(),
+            )
 
         elif order.side == Side.SHORT:
-            account.asset_to_position_map[order.pair.base] -= effective_amount
-            account.quote_balance += order.price * effective_amount * self.FEE_FACTOR
+            account.asset_to_balance_map[order.pair.base] -= effective_amount
+            account.asset_to_balance_map[order.pair.quote] += Amount(
+                (order.price * effective_amount * self.FEE_FACTOR).as_decimal()
+            )
 
         else:
             raise ValueError
@@ -261,7 +204,10 @@ class Service(OrderManger):
     def cancel_order(self, order_id: OrderId) -> None:
         with self._lock:
             order = self._order_id_to_order_map.get(order_id)
-            if order is None or order.status in (OrderStatus.QUEUED, OrderStatus.PLACED):
+            if order is None or order.status in (
+                OrderStatus.QUEUED,
+                OrderStatus.PLACED,
+            ):
                 return
             assert order.price is not None
             order.status = OrderStatus.CANCELED
