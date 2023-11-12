@@ -13,7 +13,7 @@ from frog.ordermanager.types import OrderManger, OrderId, Order, Pair, OrderStat
 from frog.square.rpc import RpcService
 from frog.utils import msgpack
 from frog.utils.shortcuts import get_zmq_context
-from frog.types import Amount, Value, Asset, Price
+from frog.types import Amount, Asset, Price
 from frog.tradecollector import Trade
 from frog.bookwatch.types import Book
 
@@ -86,7 +86,7 @@ class Service(OrderManger):
                         self._log_account_balances(account_id, account)
 
                 for pair, book in self._pair_to_orderbook_snapshot_map.items():
-                    log_message = f'pir:{pair}\t'
+                    log_message = f'piar:{pair}\t'
                     log_message += f'best bid: {book.bids[0].price}\t'
                     log_message += f'best ask: {book.asks[0].price}'
                     logging.info(log_message)

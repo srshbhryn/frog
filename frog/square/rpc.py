@@ -136,7 +136,7 @@ class RpcService:
                 dealer_socket.send_multipart([b''] + requests_socket.recv_multipart())
 
     def init_client(self, requests_queue: Queue) -> None:
-        self.response_queue = Queue(maxsize=128)
+        self.response_queue = Queue(maxsize=1024)
         self.request_queue = requests_queue
         for name in self.__class__.rpc_methods:
             setattr(self, name, self._request(name))
