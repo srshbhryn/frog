@@ -25,6 +25,7 @@ class EyeConf(typing.TypedDict):
 def target(conf):
     Eye(**conf).run()
 
+
 if __name__ == '__main__':
     multiprocessing.set_start_method('spawn', True)
     logging.basicConfig(
@@ -39,11 +40,17 @@ if __name__ == '__main__':
             for long, short in [
                 (Asset.BTC, Asset.ETH),
                 (Asset.BTC, Asset.DOGE),
+                (Asset.BTC, Asset.SHIB),
+                (Asset.ETH, Asset.BTC),
+                (Asset.ETH, Asset.DOGE),
+                (Asset.ETH, Asset.SHIB),
                 (Asset.DOGE, Asset.SHIB),
+                (Asset.SHIB, Asset.DOGE),
+                (Asset.DOGE, Asset.BTC),
             ]:
                 for quote, value in [
                     (Asset.RLS, Value('500_000_0')),
-                    # (Asset.USDT, Value('10')),
+                    (Asset.USDT, Value('10')),
                 ]:
                     counter += 1
                     name = f'eye{counter}'
