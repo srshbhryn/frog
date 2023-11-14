@@ -95,7 +95,6 @@ class RpcService:
                     code = RpcCode.OK
 
             except RpcError as e:
-                logging.warning('Handled rpc Error', exc_info=True)
                 code = e.code
                 return_value = e.msg.encode()
             except Exception as e:
