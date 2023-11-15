@@ -73,7 +73,7 @@ class Service(OrderManger):
                 for _, account in self._account_manager.items():
                     with lock:
                         data = msgpack.dumps(account)
-                    publish_queue.put((b'nobifake_account', data))
+                    publish_queue.put((b'oms_account_nobifake', data))
 
             except:
                 logging.exception('Exception in Reporter')
