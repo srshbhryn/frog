@@ -1,10 +1,7 @@
 import logging
-import multiprocessing
-
-import zmq
 
 from frog import config
-from frog.tradestore import rpc, store_main
+from frog.tradestore import main
 
 if __name__ == '__main__':
     logging.basicConfig(
@@ -12,9 +9,4 @@ if __name__ == '__main__':
         level=config.LOG_LEVEL,
         datefmt='%Y-%m-%d %H:%M:%S',
     )
-    multiprocessing.Process(
-        target=rpc.Service().run_server,
-        args=(),
-        daemon=True,
-    ).start()
-    store_main()
+    main()

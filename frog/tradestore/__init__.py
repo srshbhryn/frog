@@ -1,2 +1,2 @@
-from ._store import store_main
+from ._store import main
 from . import _service as rpc

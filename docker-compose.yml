@@ -44,6 +44,17 @@ services:
     volumes:
       - ./data:/data/
 
+  price_service:
+    image: frog_image
+    command: "python bin/price_service.py"
+    environment:
+      - ENV=PROD
+      - LOG_LEVEL=INFO
+      - PYTHONHASHSEED=0
+    restart: always
+    volumes:
+      - ./data:/data/
+
   analyst:
     image: frog_image
     command: "python bin/analyst.py"

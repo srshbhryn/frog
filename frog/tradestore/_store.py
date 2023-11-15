@@ -21,7 +21,7 @@ def store_trade(trade: TradeDTO) -> None:
     )
 
 
-def store_main() -> None:
+def main() -> None:
     setup()
     migrate()
     socket: zmq.Socket = get_zmq_context().socket(zmq.SUB)
