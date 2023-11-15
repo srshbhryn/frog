@@ -29,6 +29,7 @@ def main():
                 book: Book = msgpack.loads(data)
                 price = (book.asks[0].price + book.bids[0].price) / 2
                 pair_to_price_map[pair] = price
+                continue
 
             oms_name = topic.replace('oms_account_', '')
             account: Account = msgpack.loads(data)

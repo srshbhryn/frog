@@ -40,7 +40,7 @@ class Service(OrderManger):
         self._next_order_id = 0
         self._pair_to_orderbook_snapshot_map: dict[Pair, Book] = {}
         self._account_manager = AccountManager()
-        self._publish_queue: queue.Queue = queue.Queue(maxsize=-1)
+        self._publish_queue: queue.Queue = queue.Queue(maxsize=128)
         super().__init__()
 
     def run_server(self) -> None:
