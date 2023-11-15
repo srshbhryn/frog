@@ -70,3 +70,12 @@ services:
       - LOG_LEVEL=INFO
       - PYTHONHASHSEED=0
     restart: always
+
+  guardian:
+    image: frog_image
+    command: "python bin/guardian.py"
+    environment:
+      - ENV=PROD
+      - LOG_LEVEL=INFO
+      - PYTHONHASHSEED=0
+    restart: always
