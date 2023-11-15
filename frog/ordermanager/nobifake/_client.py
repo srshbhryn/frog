@@ -153,7 +153,7 @@ class Service(OrderManger):
 
         publish_queue.put(
             (
-                f'fill_{account_id}'.encode(),
+                f'fill_{account_id}_'.encode(),
                 msgpack.dumps(Fill(order_id, effective_amount)),
             )
         )

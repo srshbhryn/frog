@@ -141,7 +141,7 @@ class Context:
         self.external_events_topics = Topics(
             listener.Topic(f'order_{self.long_pair}'.encode()),
             listener.Topic(f'order_{self.short_pair}'.encode()),
-            listener.Topic(f'fill_{client_identity}'.encode()),
+            listener.Topic(f'fill_{client_identity}_'.encode()),
         )
         self.event_listener = listener.Listener(
             [
