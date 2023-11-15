@@ -1,55 +1,34 @@
 import logging
 import time
 import threading
-import typing
-import dataclasses
 import decimal
+import queue
 
 import zmq
 
 from frog import config
 
-from frog.ordermanager.types import OrderManger, OrderId, Order, Pair, OrderStatus, Side, Fill
+from frog.ordermanager.types import (
+    OrderManger,
+    OrderId,
+    Order,
+    OrderStatus,
+    Fill,
+    AccountId,
+    AccountManager,
+)
 from frog.square.rpc import RpcService
 from frog.utils import msgpack
 from frog.utils.shortcuts import get_zmq_context
-from frog.types import Amount, Asset, Price
+from frog.types import (
+    Amount,
+    Price,
+    Pair,
+    Side,
+)
 from frog.tradecollector import Trade
 from frog.bookwatch.types import Book
 
-AccountId = typing.NewType('AccountId', str)
-
-
-@dataclasses.dataclass
-class Account:
-    asset_to_balance_map: dict
-
-    def __init__(self) -> None:
-        self.asset_to_balance_map = {asset: Amount('0') for asset in Asset}
-
-
-class AccountManager:
-    def __init__(self) -> None:
-        self._order_id_to_account_id_map: dict[OrderId, AccountId] = {}
-        self._account_id_account_map: dict[AccountId, Account] = {}
-
-    def _create_account_if_does_not_exist(self, account_id: AccountId) -> None:
-        if account_id not in self._account_id_account_map:
-            self._account_id_account_map[account_id] = Account()
-
-    def add_order_for_an_account(self, order_id: OrderId, account_id: AccountId) -> None:
-        self._create_account_if_does_not_exist(account_id)
-        self._order_id_to_account_id_map[order_id] = account_id
-
-    def get_order_account(self, order_id: OrderId) -> tuple[AccountId, Account]:
-        account_id = self._order_id_to_account_id_map[order_id]
-        return account_id, self._account_id_account_map[account_id]
-
-    def does_order_belongs_to_account(self, order_id: OrderId, account_id: AccountId) -> bool:
-        return self._order_id_to_account_id_map.get(order_id) == account_id
-
-    def items(self) -> list[tuple[AccountId, Account]]:
-        return list(self._account_id_account_map.items())
 
 class Service(OrderManger):
     topic = b'nobifake'
@@ -61,49 +40,52 @@ class Service(OrderManger):
         self._next_order_id = 0
         self._pair_to_orderbook_snapshot_map: dict[Pair, Book] = {}
         self._account_manager = AccountManager()
+        self._publish_queue: queue.Queue = queue.Queue(maxsize=-1)
         super().__init__()
 
     def run_server(self) -> None:
-        threading.Thread(target=self._background, args=(self._lock,), daemon=True).start()
-        threading.Thread(target=self._reporter, args=(self._lock,), daemon=True).start()
+        threading.Thread(
+            target=self._background,
+            args=(self._lock, self._publish_queue),
+            daemon=True,
+        ).start()
+        threading.Thread(
+            target=self._reporter,
+            args=(self._lock, self._publish_queue),
+            daemon=True,
+        ).start()
+        threading.Thread(target=self._publisher, args=(self._publish_queue,), daemon=True).start()
         return super().run_server()
 
     def _fill_collector_process(self) -> None:
         return None
 
-    def _log_account_balances(self, account_id: AccountId, account: Account):
-        log_message = f'acc:{account_id},'
-        for asset, balance in account.asset_to_balance_map.items():
-            log_message += f'{asset}:{balance},'
-        logging.info(log_message)
+    def _publisher(self, publish_queue: queue.Queue):
+        publish_socket: zmq.Socket = get_zmq_context().socket(zmq.PUB)
+        publish_socket.connect(f'tcp://{config.HIGHWAY_HOST}:{config.HIGHWAY_XSUB_PORT}')
+        while True:
+            publish_socket.send_multipart(publish_queue.get())
 
-    def _reporter(self, lock: threading.Lock):
+    def _reporter(self, lock: threading.Lock, publish_queue: queue.Queue):
 
         while True:
             try:
-                for account_id, account in self._account_manager.items():
+                for _, account in self._account_manager.items():
                     with lock:
-                        self._log_account_balances(account_id, account)
-
-                for pair, book in self._pair_to_orderbook_snapshot_map.items():
-                    log_message = f'piar:{pair}\t'
-                    log_message += f'best bid: {book.bids[0].price}\t'
-                    log_message += f'best ask: {book.asks[0].price}'
-                    logging.info(log_message)
+                        data = msgpack.dumps(account)
+                    publish_queue.put((b'nobifake_account', data))
 
             except:
                 logging.exception('Exception in Reporter')
 
             time.sleep(10)
 
-    def _background(self, lock: threading.Lock):
+    def _background(self, lock: threading.Lock, publish_queue: queue.Queue):
         subscribe_socket: zmq.Socket = get_zmq_context().socket(zmq.SUB)
         subscribe_socket.subscribe('order_')
         subscribe_socket.subscribe('trade_')
         subscribe_socket.connect(f'tcp://{config.HIGHWAY_HOST}:{config.HIGHWAY_XPUB_PORT}')
 
-        publish_socket: zmq.Socket = get_zmq_context().socket(zmq.PUB)
-        publish_socket.connect(f'tcp://{config.HIGHWAY_HOST}:{config.HIGHWAY_XSUB_PORT}')
 
         while True:
             try:
@@ -120,14 +102,14 @@ class Service(OrderManger):
                 pair = Pair.get_from_str(topic.replace(topic_type, ''))
                 if topic_type == 'trade_':
                     with lock:
-                        self._update_orders(publish_socket, msgpack.loads(data[1]))
+                        self._update_orders(publish_queue, msgpack.loads(data[1]))
                 else:  # topic_type == 'order'
                     self._pair_to_orderbook_snapshot_map[pair] = msgpack.loads(data[1])
 
             except:
                 logging.exception('Error In nobifake')
 
-    def _update_orders(self, publish_socket: zmq.Socket, trade: Trade):
+    def _update_orders(self, publish_queue: queue.Queue, trade: Trade):
         def _get_order():
             for order_id, order in self._order_id_to_order_map.items():
                 assert order.price is not None
@@ -169,7 +151,7 @@ class Service(OrderManger):
         else:
             raise ValueError
 
-        publish_socket.send_multipart(
+        publish_queue.put(
             (
                 f'fill_{account_id}'.encode(),
                 msgpack.dumps(Fill(order_id, effective_amount)),
