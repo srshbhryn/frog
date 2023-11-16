@@ -70,11 +70,18 @@ AccountId = NewType('AccountId', str)
 @dataclasses.dataclass(slots=True)
 class Account:
     account_id: AccountId
-    asset_to_balance_map: dict
+    asset_to_balance_map: dict[Asset, Amount]
 
-    def __init__(self, account_id: AccountId) -> None:
+    def __init__(
+        self,
+        account_id: AccountId,
+        asset_to_balance_map: Optional[dict[Asset, Amount]] = None,
+    ) -> None:
         self.account_id = account_id
-        self.asset_to_balance_map = {asset: Amount('0') for asset in Asset}
+        if asset_to_balance_map is None:
+            asset_to_balance_map = {asset: Amount('0') for asset in Asset}
+
+        self.asset_to_balance_map = asset_to_balance_map
 
 
 class AccountManager:
