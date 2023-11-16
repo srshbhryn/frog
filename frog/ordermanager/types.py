@@ -67,7 +67,7 @@ AccountId = NewType('AccountId', str)
 
 
 @msgpack.dataclass
-@dataclasses.dataclass
+@dataclasses.dataclass(slots=True)
 class Account:
     account_id: AccountId
     asset_to_balance_map: dict

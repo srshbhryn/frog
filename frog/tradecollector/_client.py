@@ -75,7 +75,7 @@ class TradeStore:
 
 
 class NobitexTradeCollector:
-    DELAY = 3
+    DELAY = 5
     def __init__(self) -> None:
         self.client = AsyncHTTPClient()
         self.requests = {
