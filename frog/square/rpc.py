@@ -186,7 +186,10 @@ class RpcClient:
         time.sleep(0.1)  # TODO: fixme (This is because to make sure
         # request socket is connected to XSUB before sending any request)
 
-    def run_client_responses_loop(self, topic_to_response_queues_map) -> None:
+    def run_client_responses_loop(
+        self,
+        topic_to_response_queues_map: dict[bytes, Queue],
+    ) -> None:
         responses_socket: zmq.Socket = get_zmq_context().socket(zmq.SUB)
         responses_socket.subscribe(self.key)
         responses_socket.connect(f'tcp://{config.HIGHWAY_HOST}:{config.HIGHWAY_XPUB_PORT}')
@@ -200,7 +203,7 @@ class RpcClient:
             except:
                 logging.exception('error in rpc client response')
 
-    def run_client_requests_loop(self, requests_queue) -> None:
+    def run_client_requests_loop(self, requests_queue: Queue) -> None:
         requests_socket: zmq.Socket = get_zmq_context().socket(zmq.PUB)
         requests_socket.connect(f'tcp://{config.HIGHWAY_HOST}:{config.HIGHWAY_XSUB_PORT}')
 

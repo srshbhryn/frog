@@ -53,7 +53,7 @@ if __name__ == '__main__':
                     (Asset.USDT, Value('10')),
                 ]:
                     counter += 1
-                    name = f'eye{counter}'
+                    name = f'eye{counter}_'
                     conf = EyeConf(
                         regression_len=reg_len,
                         trade_threshold=trade_threshold,
