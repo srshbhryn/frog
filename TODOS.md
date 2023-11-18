@@ -1,24 +1,6 @@
 
-
-# Desiinng nobitexm OMS
-
-
-
 # EYE:
-    ## Fill of other instances cause unhandled (state, event) error ...
-    ### Also key error because of order s of others
-    ## nobifake should support Accounts with USDT QUOTE asset
     ## log regression result (to be compared with trading resutls)
-
-# CHECK ERRORS IN CURRENT VERSION
-
-
-
-RUN FOR OTHER PAIRS: (BTC,ETH,USDT) and (DOGE, SHIB, RLS)
-
-
-
-integration with simpletrader (modified versino) ??? (should i?)
 
 
 ### Analyitc Qs:
