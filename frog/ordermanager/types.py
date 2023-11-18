@@ -1,10 +1,18 @@
+import time
 import dataclasses
+import decimal
+import logging
+import queue
 import threading
 from typing import NewType, Optional
 
+import zmq
+
+from frog import config
 from frog.square.rpc import RpcService
 from frog.types import Amount, Pair, Price, Side, Asset
 from frog.utils import msgpack
+from frog.utils.shortcuts import get_zmq_context
 
 
 OrderId = NewType('OrderId', int)
@@ -27,6 +35,7 @@ class Order:
     status: OrderStatus = OrderStatus.QUEUED
     filled_amount: Amount = Amount('0')
 
+
 @msgpack.dataclass
 @dataclasses.dataclass(slots=True)
 class Position:
@@ -39,16 +48,99 @@ class Position:
 class Fill:
     order_id: OrderId
     amount: Amount
+    price: Price
 
 
 class OrderManger(RpcService):
+    FEE_FACTOR = decimal.Decimal('0.999')
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._lock = threading.Lock()
+        self._publish_queue: queue.Queue = queue.Queue(maxsize=128)
+        self._account_manager = AccountManager()
+        self._order_id_to_order_map: dict[OrderId, Order] = {}
 
     def run_server(self) -> None:
-        threading.Thread(target=self._fill_collector_process, daemon=True).start()
-        super().run_server()
+        threading.Thread(
+            target=self._fill_collector,
+            args=(self._lock, self._publish_queue),
+            daemon=True,
+        ).start()
+        threading.Thread(
+            target=self._reporter,
+            args=(self._lock, self._publish_queue),
+            daemon=True,
+        ).start()
+        threading.Thread(
+            target=self._publisher,
+            args=(self._publish_queue,),
+            daemon=True,
+        ).start()
+        return super().run_server()
 
-    def _fill_collector_process(self) -> None:
+    def _fill_collector(
+        self,
+        lock: threading.Lock,
+        publish_queue: queue.Queue,
+    ):
         raise NotImplementedError
+
+    def update_orders(
+        self,
+        lock: threading.Lock,
+        publish_queue: queue.Queue,
+        fill: Fill,
+    ) -> Optional[Order]:
+        order_id = fill.order_id
+        if not order_id in self._order_id_to_order_map:
+            return None
+
+        with lock:
+            order = self._order_id_to_order_map[order_id]
+            effective_amount = min(fill.amount, order.amount - order.filled_amount)
+            order.filled_amount += effective_amount
+            if order.filled_amount == order.amount:
+                order.status = OrderStatus.FILLED
+            account_id, account = self._account_manager.get_order_account(order_id)
+
+            if order.side == Side.LONG:
+                account.asset_to_balance_map[order.pair.base] += effective_amount * self.FEE_FACTOR
+                account.asset_to_balance_map[order.pair.quote] -= Amount(
+                    (fill.price * effective_amount).as_decimal(),
+                )
+
+            elif order.side == Side.SHORT:
+                account.asset_to_balance_map[order.pair.base] -= effective_amount
+                account.asset_to_balance_map[order.pair.quote] += Amount(
+                    (fill.price * effective_amount * self.FEE_FACTOR).as_decimal()
+                )
+
+        publish_queue.put(
+            (
+                f'fill_{account_id}'.encode(),
+                msgpack.dumps(fill),
+            )
+        )
+        return order
+
+    def _reporter(self, lock: threading.Lock, publish_queue: queue.Queue):
+        oms_name = b'oms_account_' + self.topic
+        while True:
+            try:
+                for _, account in self._account_manager.items():
+                    with lock:
+                        data = msgpack.dumps(account)
+                    publish_queue.put((oms_name, data))
+            except:
+                logging.exception('Exception in Reporter')
+            time.sleep(10)
+
+    def _publisher(self, publish_queue: queue.Queue) -> None:
+        publish_socket: zmq.Socket = get_zmq_context().socket(zmq.PUB)
+        publish_socket.connect(f'tcp://{config.HIGHWAY_HOST}:{config.HIGHWAY_XSUB_PORT}')
+        while True:
+            publish_socket.send_multipart(publish_queue.get())
 
     @RpcService.register
     def place_order(self, pair: Pair, side: Side, amount: Amount, price: Price) -> OrderId:
