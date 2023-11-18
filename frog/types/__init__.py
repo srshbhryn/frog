@@ -61,6 +61,9 @@ class Side(msgpack.Enum):
     def __str__(self) -> str:
         return self.name
 
+    def __neg__(self):
+        return Side.SHORT if self == Side.LONG else Side.LONG
+
 
 @msgpack.dataclass
 @dataclasses.dataclass(slots=True)
