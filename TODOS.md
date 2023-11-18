@@ -8,7 +8,7 @@
     ## Fill of other instances cause unhandled (state, event) error ...
     ### Also key error because of order s of others
     ## nobifake should support Accounts with USDT QUOTE asset
-
+    ## log regression result (to be compared with trading resutls)
 
 # CHECK ERRORS IN CURRENT VERSION
 
@@ -27,3 +27,5 @@ integration with simpletrader (modified versino) ??? (should i?)
     should beta always be close to 1? is trading while beta is .6 or .5 is a bad idea?
 
     what happens if we replace long and short assets with each other
+
+
