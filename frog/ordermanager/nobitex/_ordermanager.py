@@ -1,93 +1,99 @@
 import logging
+import queue
 import threading
 import time
 
 from frog import config
+from frog.types import Pair, Price, Amount, Side
 from frog.ordermanager.types import (
-    Amount,
+    Fill,
+    AccountId,
     Order,
     OrderId,
     OrderManger,
-    OrderStatus,
-    Side,
 )
 from frog.square.rpc import RpcService
 
-from ._client import Client as NobitexClient
+from ._client import Client
+from ._position_manager import PositionManger
 
 
 class Service(OrderManger):
     topic = b'nobitex'
 
     def __init__(self) -> None:
-        self._client = NobitexClient(config.NOBITEX_TOKEN, 'frog1.1')
-        self._orders: dict[OrderId, Order] = {}
-        self._mutex = threading.Lock()
         super().__init__()
+        self._client = Client(config.NOBITEX_TOKEN, 'frog-1.5')
+        self._position_manager = PositionManger(self._client)
 
-    def _fill_collector_process(self) -> None:
+    def _fill_collector(self, lock: threading.Lock, publish_queue: queue.Queue):
+        last_fetched_fill_id = -1
+        client = Client(config.NOBITEX_TOKEN, 'frog-1.5')
         while True:
-            time.sleep(5)
+            time.sleep(3)
+            url = f'market/trades/list?pageSize=500&fromId={last_fetched_fill_id+1}'
             try:
-                try:
-                    min_oi = min(self._orders.keys())
-                except Exception:
-                    min_oi = OrderId(0)
-
-                orders = self._client.request(
-                    typ=self._client.Type.PRIVATE,
-                    method=self._client.Method.GET,
-                    url=f'/market/orders/list?status=all&details=2&fromId={min_oi}',
-                )['orders']
-            except:
-                logging.exception('Error in fetching "/market/orders/list"')
-                continue
-            with self._mutex:
-                for order in orders:
-                    oid = order['id']
-                    if oid not in self._orders:
-                        continue
-
-                    if self._orders[oid].status in (
-                        OrderStatus.FILLED,
-                        OrderStatus.CANCELED,
-                    ):
-                        continue
-                    self._orders[oid].filled_amount = Amount(
-                        order['matchedAmount'],
+                response = client.request(Client.Type.PRIVATE, Client.Method.GET, url)
+                for trade in response['trades']:
+                    fill = Fill(
+                        OrderId(trade['orderId']),
+                        Amount(trade['amount']),
+                        Price(trade['price']),
                     )
-                    if order['status'] == 'Done':
-                        self._orders[oid].status = OrderStatus.FILLED
-                    if order['status'] == 'Canceled':
-                        self._orders[oid].status = OrderStatus.CANCELED
+                    order = self.update_orders(lock, publish_queue, fill)
+                    if order is None:
+                        return
+                    self._position_manager.apply_close_order_fill_to_position(
+                        order.pair,
+                        order.side,
+                        fill,
+                    )
+                if len(response['trades']) > 0:
+                    last_fetched_fill_id = response['trades'][0]['id']
 
+            except:
+                logging.exception('Error in fetching "%s"', url)
+                continue
 
     @RpcService.register
-    def place_order(self, order: Order) -> OrderId:
-        data = {
-            'type': 'buy' if order.side == Side.LONG else 'sell',
-            'srcCurrency': str(order.pair.base),
-            'dstCurrency': str(order.pair.quote),
-            'amount': str(order.amount),
-            'leverage': config.NOBITEX_LEVERAGE,
-        }
-        if order.price:
-            data['price'] = str(order.price)
-        else:
-            data['execution'] = 'market'
-
-        with self._mutex:
+    def place_order(
+        self,
+        pair: Pair,
+        side: Side,
+        amount: Amount,
+        price: Price,
+        **kwargs,
+    ) -> OrderId:
+        position = self._position_manager.get_position_by_pair_side(pair, -side)
+        if position is None:
+            raise RpcService.Err(RpcService.Err.Code.NOT_AVAILABLE, 'no position to close')
+        url = f'/positions/{position.position_id}/close'
+        with self._lock:
             try:
                 placed_order = self._client.request(
                     typ=self._client.Type.PRIVATE,
                     method=self._client.Method.POST,
-                    url='/margin/orders/add',
-                    data=data,
+                    url=url,
+                    data={
+                        'amount': str(amount),
+                        'price': str(price),
+                    },
                 )['order']
-                self._orders[placed_order['id']] = order
-                return placed_order['id']
+                order = Order(
+                    pair=pair,
+                    side=side,
+                    amount=amount,
+                    price=price,
+                )
+                order_id = OrderId(placed_order['id'])
+                self._order_id_to_order_map[order_id] = order
+                self._account_manager.add_order_for_an_account(
+                    order_id,
+                    AccountId(kwargs['client_identity']),
+                )
+                return order_id
             except:
-                logging.exception('Error in fetching "/margin/orders/list"')
+                logging.exception('Error in fetching "%s"', url)
                 raise
 
     @RpcService.register
@@ -104,5 +110,5 @@ class Service(OrderManger):
 
     @RpcService.register
     def get_order(self, order_id: OrderId) -> Order:
-        with self._mutex:
-            return self._orders[order_id]
+        with self._lock:
+            return self._order_id_to_order_map[order_id]

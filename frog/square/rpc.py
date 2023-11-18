@@ -30,6 +30,7 @@ class RpcCode(enum.Enum):
 
 
 class RpcError(Exception):
+    Code = RpcCode
     def __init__(
         self,
         code: typing.Optional[RpcCode] = None,

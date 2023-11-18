@@ -1,20 +1,18 @@
 import enum
 import logging
-import threading
 import time
 import typing
 
 import requests
-import zmq
 
-from frog import config
 
-logger = logging.getLogger()
+RETRY_WAIT_PERIOD = 2
+NUMBER_OF_RETRIES = 3
 
 
 def handle_exception(func):
     def wrapper(*args, **kwargs):
-        counter = 3
+        counter = NUMBER_OF_RETRIES
         while True:
             try:
                 return func(*args, **kwargs)
@@ -22,10 +20,10 @@ def handle_exception(func):
                 if counter == 0:
                     raise
                 counter -= 1
-                logger.exception('RequestException happened.')
+                logging.exception('RequestException happened.')
                 if e.response is not None:
-                    logger.error('response body: "%s."', e.response.text)
-                time.sleep(2)
+                    logging.error('response body: "%s."', e.response.text)
+                time.sleep(RETRY_WAIT_PERIOD)
     return wrapper
 
 
@@ -48,11 +46,6 @@ class Client:
         self.token = token
         self.name = name
         self.initialize()
-        threading.Thread(target=self.fill_collector, args=(), daemon=True).start()
-
-    def fill_collector(self) -> None:
-        socket = zmq.Context().socket(zmq.PUB)
-        socket.connect(f'tcp://{config.HIGHWAY_HOST}:{config.HIGHWAY_XSUB_PORT}')
 
     def initialize(self) -> None:
         self.sessions: dict[Client.Type, requests.Session] = {
