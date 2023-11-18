@@ -40,7 +40,7 @@ def main():
                 if balance == Amount(0):
                     continue
                 non_zero_balances[str(asset)] = str(balance)
-                side = Side.LONG if balance.as_decimal() > 0 else side.SHORT
+                side = Side.LONG if balance.as_decimal() > 0 else Side.SHORT
                 usdt_price = get_price(pair_side_to_price_map, asset, Asset.USDT, side)
                 rls_price = get_price(pair_side_to_price_map, asset, Asset.RLS, side)
                 if usdt_price is None or rls_price is None:
