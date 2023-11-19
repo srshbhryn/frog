@@ -1,1 +1,1 @@
-from ._main import Context as Eye
+from ._main import Context as Eye, Config as EyeConfig

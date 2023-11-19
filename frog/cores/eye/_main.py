@@ -1,4 +1,5 @@
 import dataclasses
+import functools
 import datetime
 import enum
 import logging
@@ -49,7 +50,6 @@ class CancelOrder(Action):
         self.order_id = order_id
 
     def __call__(self, context: 'Context') -> None:
-        logging.debug('cancelling order %s', str(self.order_id))
         context.client.nobitex_client.cancel_order(self.order_id)
         context.set_pair_order_to_close(context.order_id_to_order_map[self.order_id].pair)
 
@@ -77,6 +77,47 @@ class ActionQueue:
         return len(self._actions) != 0
 
 
+class Logger:
+    def __init__(self, client_name: str):
+        self.client_name = client_name
+        for method_name in ('info', 'debug', 'error', 'warning', 'exception'):
+            setattr(
+                self,
+                method_name,
+                lambda msg, *args, **kwargs: getattr(logging, method_name)(
+                    f'{self.client_name}\t{msg}', *args, **kwargs
+                ),
+            )
+
+
+@dataclasses.dataclass(slots=True)
+class Config:
+    regression_len: int
+    trade_threshold: Decimal
+    pricing_factor: Decimal
+    wait_period: datetime.timedelta
+    long_asset: Asset
+    short_asset: Asset
+    quote_asset: Asset
+    base_trade_value: Value
+    client_identity: str
+
+    def __str__(self) -> str:
+        return str(
+            {
+                'regression_len': self.regression_len,
+                'trade_threshold': self.trade_threshold,
+                'pricing_factor': self.pricing_factor,
+                'wait_period': self.wait_period,
+                'long_asset': self.long_asset,
+                'short_asset': self.short_asset,
+                'quote_asset': self.quote_asset,
+                'base_trade_value': self.base_trade_value,
+                'client_identity': self.client_identity,
+            }
+        )
+
+
 @dataclasses.dataclass(slots=True)
 class Context:
 
@@ -86,20 +127,13 @@ class Context:
     event_listener: listener.Listener
     action_queue: ActionQueue
     client: Client
-
+    logger: Logger
     # state
     state: State
     order_id_to_order_map: dict[OrderId, Order]
-    ####  config
 
-    regression_len: int
-    trade_threshold: Decimal
-    pricing_factor: Decimal
-    wait_period: datetime.timedelta
-    long_asset: Asset
-    short_asset: Asset
-    quote_asset: Asset
-    base_trade_value: Value
+    ####  config
+    config: Config
 
     @property
     def analyst(self) -> analyst_rpc.Service:
@@ -113,35 +147,17 @@ class Context:
     def nobitex_client(self) -> nobitex_rpc.Service:
         return self.client.nobitex_client
 
-    def __init__(
-        self,
-        regression_len: int,
-        trade_threshold: Decimal,
-        pricing_factor: Decimal,
-        wait_period: datetime.timedelta,
-        long_asset: Asset,
-        short_asset: Asset,
-        quote_asset: Asset,
-        base_trade_value: Value,
-        client_identity: str,
-    ) -> None:
-        self.regression_len = regression_len
-        self.trade_threshold = trade_threshold
-        self.pricing_factor = pricing_factor
-        self.wait_period = wait_period
-        self.long_asset = long_asset
-        self.short_asset = short_asset
-        self.quote_asset = quote_asset
-        self.base_trade_value = base_trade_value
-
+    def __init__(self, config: Config) -> None:
+        self.config = config
+        self.logger = Logger(config.client_identity)
         self.state = State.NN
         self.action_queue = ActionQueue()
-        self.client = Client(client_identity)
+        self.client = Client(self.config.client_identity)
         self.order_id_to_order_map = {}
         self.external_events_topics = Topics(
             listener.Topic(f'order_{self.long_pair}'.encode()),
             listener.Topic(f'order_{self.short_pair}'.encode()),
-            listener.Topic(f'fill_{client_identity}_'.encode()),
+            listener.Topic(f'fill_{self.config.client_identity}_'.encode()),
         )
         self.event_listener = listener.Listener(
             [
@@ -154,11 +170,11 @@ class Context:
 
     @property
     def long_pair(self) -> Pair:
-        return Pair(self.long_asset, self.quote_asset)
+        return Pair(self.config.long_asset, self.config.quote_asset)
 
     @property
     def short_pair(self) -> Pair:
-        return Pair(self.short_asset, self.quote_asset)
+        return Pair(self.config.short_asset, self.config.quote_asset)
 
     def set_pair_order_to_close(self, pair: Pair) -> None:
         if pair == self.long_pair:
@@ -194,7 +210,6 @@ class Context:
         while True:
             if self.action_queue.has_action():
                 action = self.action_queue.pop_action()
-                logging.debug('There is Action: %s', action)
                 action(self)
                 continue
 
@@ -237,7 +252,6 @@ class PlaceOrder(Action):
         super().__init__()
 
     def __call__(self, context: Context) -> None:
-        logging.debug('placing order')
         order_id = context.nobitex_client.place_order(
             pair=self.pair,
             side=self.side,
@@ -251,29 +265,19 @@ class PlaceOrder(Action):
             price=self.price,
         )
         context.set_pair_order_to_open(self.pair)
-        context.event_listener.add_reminder(context.wait_period, CancelOrder(order_id))
-        logging.debug(
-            'placed %s order on %s, amount: %s, price: %s.order id: %s.',
-            str(self.side),
-            str(self.pair.base),
-            str(self.amount),
-            str(self.price),
-            str(order_id),
-        )
+        context.event_listener.add_reminder(context.config.wait_period, CancelOrder(order_id))
 
 
 class CheckResidual(Action):
     def __call__(self, context: Context) -> None:
-        logging.debug('checking residual')
         end_time = now().replace(second=0, microsecond=0)
-        start_time = end_time - datetime.timedelta(minutes=context.regression_len)
+        start_time = end_time - datetime.timedelta(minutes=context.config.regression_len)
 
         try:
             long_price = context.trade_store.get(context.long_pair, end_time)
             short_price = context.trade_store.get(context.short_pair, end_time)
 
         except RpcError:
-            logging.exception('PriceIsNotAvailable')
             return
 
         regression = context.analyst.get_regression(
@@ -288,22 +292,19 @@ class CheckResidual(Action):
             - regression.alpha
             - regression.beta * (short_price / regression.short_price_normalizer)
         )
-        logging.debug('residual is, %s', str(residual))
-        logging.debug('regression: %s', str(regression))
-        logging.debug('long price: %s, short price: %s', str(long_price), str(short_price))
 
-        if context.trade_threshold >= residual >= -context.trade_threshold:
+        if context.config.trade_threshold >= residual >= -context.config.trade_threshold:
             return
 
-        should_short_long_asset = context.trade_threshold < residual
+        should_short_long_asset = context.config.trade_threshold < residual
         long_pair_side = Side.SHORT if should_short_long_asset else Side.LONG
         short_pair_side = Side.LONG if should_short_long_asset else Side.SHORT
-        pf = context.pricing_factor
+        pf = context.config.pricing_factor
         long_pair_price = long_price * (pf if should_short_long_asset else 1 / pf)
         short_pair_price = short_price * (1 / pf if should_short_long_asset else pf)
-        long_amount = context.base_trade_value / long_pair_price
+        long_amount = context.config.base_trade_value / long_pair_price
         assert isinstance(long_amount, Amount)
-        short_amount = (context.base_trade_value / short_pair_price) * regression.beta
+        short_amount = (context.config.base_trade_value / short_pair_price) * regression.beta
         assert isinstance(short_amount, Amount)
         context.action_queue.add_action(
             PlaceOrder(
@@ -328,7 +329,6 @@ class UpdateOrderFill:
         self.fill = fill
 
     def __call__(self, context: Context) -> None:
-        logging.debug('update Order %s fill by %s.', str(self.fill.order_id), str(self.fill.amount))
         order = context.order_id_to_order_map.get(self.fill.order_id)
         if order is None:
             return
