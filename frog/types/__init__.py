@@ -1,6 +1,7 @@
 from decimal import Decimal
 import dataclasses
 from datetime import datetime
+import json
 
 from typing import Union
 
@@ -79,6 +80,16 @@ class Regression:
     beta: Decimal
     long_price_normalizer: Price
     short_price_normalizer: Price
+
+    def __str__(self) -> str:
+        return json.dumps(
+            {
+                'alpha': str(self.alpha),
+                'beta': str(self.beta),
+                'long_price_normalizer': str(self.long_price_normalizer),
+                'short_price_normalizer': str(self.short_price_normalizer),
+            }
+        )
 
 
 def datetime_encoder(obj: datetime) -> str:

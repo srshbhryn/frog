@@ -29,7 +29,9 @@ class State(enum.Enum):
 
 class Action:
     def __init__(self, *args, **kwargs) -> None:
-        self.log_message = f'calling "{self.__class__.__name__}" args: "{str(args)}", and kwargs: "{str(kwargs)}".'
+        self.log_message = (
+            '{' + f'"action":"{self.__class__.__name__}","args":"{str(args)}","kwargs":"{str(kwargs)}"' + '}'
+        )
 
     def __call__(self, _: 'Context') -> None:
         raise NotImplementedError
@@ -307,6 +309,8 @@ class CheckResidual(Action):
 
         if context.config.trade_threshold >= residual >= -context.config.trade_threshold:
             return
+
+        context.logger.info('{"regression": %s,"residual": %s}', str(regression), str(residual))
 
         should_short_long_asset = context.config.trade_threshold < residual
         long_pair_side = Side.SHORT if should_short_long_asset else Side.LONG
