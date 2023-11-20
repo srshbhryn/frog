@@ -1,9 +1,9 @@
 import dataclasses
-import functools
 import datetime
+from decimal import Decimal
 import enum
 import logging
-from decimal import Decimal
+import typing
 
 from frog.analyst import rpc as analyst_rpc
 from frog.ordermanager.nobifake import rpc as nobitex_rpc
@@ -28,6 +28,9 @@ class State(enum.Enum):
 
 
 class Action:
+    def __init__(self, *args, **kwargs) -> None:
+        self.log_message = f'calling "{self.__class__.__name__}" args: "{str(args)}", and kwargs: "{str(kwargs)}".'
+
     def __call__(self, _: 'Context') -> None:
         raise NotImplementedError
 
@@ -47,9 +50,11 @@ class Client(RpcClient):
 
 class CancelOrder(Action):
     def __init__(self, order_id: OrderId) -> None:
+        super().__init__(order_id)
         self.order_id = order_id
 
     def __call__(self, context: 'Context') -> None:
+        context.logger.info(self.log_message)
         context.client.nobitex_client.cancel_order(self.order_id)
         context.set_pair_order_to_close(context.order_id_to_order_map[self.order_id].pair)
 
@@ -78,6 +83,12 @@ class ActionQueue:
 
 
 class Logger:
+    info: typing.Callable
+    debug: typing.Callable
+    error: typing.Callable
+    warning: typing.Callable
+    exception: typing.Callable
+
     def __init__(self, client_name: str):
         self.client_name = client_name
         for method_name in ('info', 'debug', 'error', 'warning', 'exception'):
@@ -235,8 +246,7 @@ class Context:
             if self.state != State.NN and event.topic == self.external_events_topics.account_fill:
                 UpdateOrderFill(event.data)(self)
                 continue
-
-            logging.error(
+            self.logger.error(
                 'Unhandled "(state, event)"  pair: %s %s',
                 event,
                 self.state,
@@ -245,13 +255,14 @@ class Context:
 
 class PlaceOrder(Action):
     def __init__(self, pair: Pair, amount: Amount, price: Price, side: Side) -> None:
+        super().__init__(pair, amount, price, side)
         self.pair = pair
         self.amount = amount
         self.price = price
         self.side = side
-        super().__init__()
 
     def __call__(self, context: Context) -> None:
+        context.logger.info(self.log_message)
         order_id = context.nobitex_client.place_order(
             pair=self.pair,
             side=self.side,
@@ -270,6 +281,7 @@ class PlaceOrder(Action):
 
 class CheckResidual(Action):
     def __call__(self, context: Context) -> None:
+        context.logger.info(self.log_message)
         end_time = now().replace(second=0, microsecond=0)
         start_time = end_time - datetime.timedelta(minutes=context.config.regression_len)
 
@@ -324,11 +336,13 @@ class CheckResidual(Action):
         )
 
 
-class UpdateOrderFill:
+class UpdateOrderFill(Action):
     def __init__(self, fill: Fill) -> None:
+        super().__init__(fill)
         self.fill = fill
 
     def __call__(self, context: Context) -> None:
+        context.logger.info(self.log_message)
         order = context.order_id_to_order_map.get(self.fill.order_id)
         if order is None:
             return
