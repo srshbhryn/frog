@@ -65,7 +65,7 @@ def collect_nobitex_candles(
             [
                 Candle(
                     base_asset=str(base_asset),
-                    quote_asset=str(quote_asset).replace('rls', 'irt'),
+                    quote_asset=str(quote_asset),
                     exchange='nobitex',
                     resolution=1,
                     timestamp=t,
