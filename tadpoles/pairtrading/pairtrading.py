@@ -1,71 +1,59 @@
-import dataclasses
 import datetime
-import decimal
+import functools
 
 from frog.types import Asset, Amount, Value, Price, Pair, Regression
 from tadpoles.prices import Oracle
+from tadpoles.types import Exchange
+
+from .types import Algorithm, Result
 
 
-@dataclasses.dataclass
-class Algorithm:
-    min_trading_beta: decimal.Decimal
-    pricing_factor: decimal.Decimal
-    wait_period: datetime.timedelta
-    trading_threshold: decimal.Decimal
-    regression_len: int
-    regression_delta: datetime.timedelta  # should be integer number of minutes
-    long_asset: Asset
-    short_asset: Asset
-    quote_asset: Asset
-
-    def __init__(
-        self,
-        min_trading_beta,
-        pricing_factor,
-        trading_threshold,
-        wait_period,
-        regression_len,
-        regression_delta,
-        long_asset,
-        short_asset,
-        quote_asset,
-    ):
-        self.min_trading_beta = min_trading_beta
-        self.pricing_factor = pricing_factor
-        self.trading_threshold = trading_threshold
-        self.wait_period = wait_period
-        self.regression_len = regression_len
-        number_of_regression_delta_minutes = regression_delta / datetime.timedelta(minutes=1)
-        assert int(number_of_regression_delta_minutes) == number_of_regression_delta_minutes
-        self.regression_delta = regression_delta
-        self.long_asset = long_asset
-        self.short_asset = short_asset
-        self.quote_asset = quote_asset
-
-
-@dataclasses.dataclass
-class Result:
-    timestamp: datetime.datetime
-    regression: Regression
-    did_short_trade_fill: bool
-    did_long_trade_fill: bool
-    gain: decimal.Decimal
-
+from .db import AlgorithmEntity, db
 
 class PairTradingSimulation:
     def __init__(
         self,
-        algorithm_parameters: AlgorithmParameters,
+        algorithm: Algorithm,
         start_at: datetime.datetime,
         end_at: datetime.datetime,
-        prices_oracle: Oracle,
     ) -> None:
         self.start_at = start_at
         self.end_at = end_at
-        self.algorithm_parameters = algorithm_parameters
-        self.prices_oracle = prices_oracle
+        self.algorithm = algorithm
+        self.asset_to_pair_price_oracle_map = {
+            self.algorithm.long_asset: Oracle(
+                Exchange.NOBITEX,
+                Pair(self.algorithm.long_asset, self.algorithm.quote_asset),
+            ),
+            self.algorithm.short_asset: Oracle(
+                Exchange.NOBITEX,
+                Pair(self.algorithm.short_asset, self.algorithm.quote_asset),
+            ),
+        }
         self.simulation_timestamp = start_at.timestamp()
-        self.results: list[Result] = []
+
+    @functools.cached_property
+    def algorithm_id(self) -> int:
+        entity_kwargs = self.algorithm.as_entity_kwargs()
+        algorithm_entity = db.query(AlgorithmEntity).filter_by(**entity_kwargs).first()
+        if algorithm_entity is None:
+            algorithm_entity = AlgorithmEntity(**entity_kwargs)
+            db.add(algorithm_entity)
+            db.commit()
+            db.refresh(algorithm_entity)
+
+        return algorithm_entity.id
+
+    def get_time_range_min_and_max_prices(
+        self,
+        asset: Asset,
+        from_timestamp: int,
+        to_timestamp: int,
+    ) -> tuple[Price, Price]:
+        oracle = self.asset_to_pair_price_oracle_map[asset]
 
     def get_prices(self):
+        pass
+
+    def run_for(timestamp: datetime.datetime) -> None:
         pass

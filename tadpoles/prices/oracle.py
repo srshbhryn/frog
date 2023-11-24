@@ -1,7 +1,8 @@
-from datetime import datetime
-from typing import Optional
+import functools
+from datetime import datetime, timedelta
+from typing import Optional, TypedDict
 
-import sqlalchemy.exc
+from sqlalchemy import func, select
 
 from frog.types import Pair, Price
 from tadpoles.types import Exchange
@@ -10,22 +11,60 @@ from .db import db, Candle
 
 
 class Oracle:
-    def __init__(self, exchange: Exchange) -> None:
+    def __init__(self, exchange: Exchange, pair: Pair) -> None:
         self.exchange = exchange
-        self.db = db
+        self.pair = pair
 
-    def get_price(self, pair: Pair, timestamp: datetime) -> Optional[Price]:
-        last_minutes_timestamp = timestamp.replace(second=0, microsecond=0).timestamp()
-        try:
-            candle = (
-                db.query(Candle)
-                .filter_by(
-                    timestamp=last_minutes_timestamp,
-                    base_asset=pair.base.value.lower(),
-                    quote_asset=pair.quote.value.lower(),
-                )
-                .one()
+    @functools.cached_property
+    def pair_filter_args(self) -> list:
+        return [
+            Candle.base_asset == self.pair.base.value,
+            Candle.quote_asset == self.pair.quote.value,
+        ]
+
+    def _convert_to_whole_minute_timestamp(self, timestamp: datetime) -> int:
+        return timestamp.replace(second=0, microsecond=0).timestamp()
+
+    def get_price(self, timestamp: datetime) -> Optional[Price]:
+        candle = (
+            db.query(Candle)
+            .filter(
+                *[
+                    *self.pair_filter_args,
+                    Candle.timestamp == self._convert_to_whole_minute_timestamp(timestamp),
+                ],
             )
-        except sqlalchemy.exc.NoResultFound:
+            .first()
+        )
+
+        if candle is None:
             return None
         return Price(candle.close_price)
+
+    def get_time_range_min_and_max_prices(
+        self,
+        from_timestamp: datetime,
+        to_timestamp: datetime,
+    ) -> tuple[Optional[Price], Optional[Price]]:
+        from_timestamp_whole_minute = self._convert_to_whole_minute_timestamp(from_timestamp)
+        if from_timestamp_whole_minute != from_timestamp.timestamp():
+            from_timestamp_whole_minute += 60
+
+        min_price, max_price = (
+            db.query(
+                func.min(Candle.min_price),
+                func.max(Candle.max_price),
+            )
+            .filter(
+                *[
+                    *self.pair_filter_args,
+                    Candle.timestamp >= from_timestamp_whole_minute,
+                    Candle.timestamp <= self._convert_to_whole_minute_timestamp(to_timestamp),
+                ],
+            )
+            .first()
+        )
+        if min_price is None or max_price is None:
+            return None, None
+
+        return Price(min_price), Price(max_price)
