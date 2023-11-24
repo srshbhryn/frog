@@ -1,6 +1,7 @@
 {
     "cSpell.words": [
       "ANALYSISSERVICE",
+      "autoflush",
       "bookwatch",
       "httpclient",
       "inproc",
@@ -15,8 +16,10 @@
       "ptreg",
       "pytz",
       "REFERER",
+      "sessionmaker",
       "SHIB",
       "sklearn",
+      "sqlalchemy",
       "timerange",
       "tradecollector",
       "tradestore",

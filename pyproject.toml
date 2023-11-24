@@ -28,8 +28,11 @@ disable = [
   "missing-function-docstring",
   "missing-class-docstring",
   "too-few-public-methods",
+  "redefined-outer-name",
 
 ]
+
+
 [tool.pytype]
 keep_going = true
 platform = "linux"
