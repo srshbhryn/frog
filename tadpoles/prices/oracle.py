@@ -1,8 +1,8 @@
 import functools
-from datetime import datetime, timedelta
-from typing import Optional, TypedDict
+from datetime import datetime
+from typing import Optional
 
-from sqlalchemy import func, select
+from sqlalchemy import func
 
 from frog.types import Pair, Price
 from tadpoles.types import Exchange
@@ -41,7 +41,7 @@ class Oracle:
             return None
         return Price(candle.close_price)
 
-    def get_time_range_min_and_max_prices(
+    def get_timerange_min_and_max_prices(
         self,
         from_timestamp: datetime,
         to_timestamp: datetime,
@@ -68,3 +68,18 @@ class Oracle:
             return None, None
 
         return Price(min_price), Price(max_price)
+
+    def get_timerange_prices(self, from_timestamp: datetime, to_timestamp: datetime) -> list[Price]:
+        return [
+            Price(price)
+            for price in db.query(Candle.close_price)
+            .filter(
+                *[
+                    *self.pair_filter_args,
+                    Candle.timestamp >= self._convert_to_whole_minute_timestamp(from_timestamp),
+                    Candle.timestamp <= self._convert_to_whole_minute_timestamp(to_timestamp),
+                ],
+            )
+            .order_by(Candle.timestamp)
+            .all()
+        ]
