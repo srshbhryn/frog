@@ -68,6 +68,12 @@ class _BaseMoney:
 
         return self._value.__gt__(__value._value)
 
+    def __le__(self, __value):
+        return self < __value or self == __value
+
+    def __ge__(self, __value):
+        return self > __value or self == __value
+
     def __repr__(self) -> str:
         return repr(self._value).replace('Decimal', self.__class__.__name__)
 
