@@ -69,10 +69,14 @@ class Oracle:
 
         return Price(min_price), Price(max_price)
 
-    def get_timerange_prices(self, from_timestamp: datetime, to_timestamp: datetime) -> list[Price]:
-        return [
-            Price(price)
-            for price in db.query(Candle.close_price)
+    def get_timerange_prices(
+        self,
+        from_timestamp: datetime,
+        to_timestamp: datetime,
+    ) -> dict[datetime, Price]:
+        return {
+            datetime.fromtimestamp(timestamp): Price(price)
+            for timestamp, price in db.query(Candle.timestamp, Candle.open_price)
             .filter(
                 *[
                     *self.pair_filter_args,
@@ -82,4 +86,4 @@ class Oracle:
             )
             .order_by(Candle.timestamp)
             .all()
-        ]
+        }
