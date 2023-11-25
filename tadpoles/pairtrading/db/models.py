@@ -1,6 +1,5 @@
 import decimal
 
-
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import DECIMAL, String, ForeignKey
 
@@ -33,9 +32,14 @@ class ResultEntity(Base):
     regression_beta: Mapped[decimal.Decimal] = mapped_column(DECIMAL(32, 16))
     regression_long_price_normalizer: Mapped[decimal.Decimal] = mapped_column(DECIMAL(32, 16))
     regression_short_price_normalizer: Mapped[decimal.Decimal] = mapped_column(DECIMAL(32, 16))
+    regression_number_of_long_prices: Mapped[int]
+    regression_number_of_short_prices: Mapped[int]
+    regression_number_of_timestamps_intersection_set: Mapped[int]
     did_short_trade_fill: Mapped[bool]
     did_long_trade_fill: Mapped[bool]
-    gain: Mapped[decimal.Decimal] = mapped_column(DECIMAL(32, 16))
+    added_long_asset_amount: Mapped[decimal.Decimal] = mapped_column(DECIMAL(32, 16))
+    added_short_asset_amount: Mapped[decimal.Decimal] = mapped_column(DECIMAL(32, 16))
+    added_quote_asset_amount: Mapped[decimal.Decimal] = mapped_column(DECIMAL(32, 16))
 
 
 Base.metadata.create_all(engine)
