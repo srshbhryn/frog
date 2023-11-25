@@ -3,7 +3,9 @@ import datetime
 import decimal
 import typing
 
-from frog.types import Asset, Regression
+from frog.types import Asset, Regression, Amount
+
+from tadpoles.pairtrading.regression import RegressionDetail
 
 from .db import AlgorithmEntity, ResultEntity
 
@@ -77,18 +79,26 @@ class ResultEntityKwargs(typing.TypedDict):
     regression_beta: decimal.Decimal
     regression_long_price_normalizer: decimal.Decimal
     regression_short_price_normalizer: decimal.Decimal
+    regression_number_of_long_prices: int
+    regression_number_of_short_prices: int
+    regression_number_of_timestamps_intersection_set: int
+    added_long_asset_amount: Amount
+    added_short_asset_amount: Amount
+    added_quote_asset_amount: Amount
     did_short_trade_fill: bool
     did_long_trade_fill: bool
-    gain: decimal.Decimal
 
 
 @dataclasses.dataclass
 class Result:
     timestamp: datetime.datetime
     regression: Regression
+    regression_detail: RegressionDetail
     did_short_trade_fill: bool
     did_long_trade_fill: bool
-    gain: decimal.Decimal
+    added_long_asset_amount: Amount
+    added_short_asset_amount: Amount
+    added_quote_asset_amount: Amount
 
     def as_entity_kwargs(self, algorithm_id: int) -> ResultEntityKwargs:
         return ResultEntityKwargs(
@@ -98,7 +108,12 @@ class Result:
             regression_beta=self.regression.beta,
             regression_long_price_normalizer=self.regression.long_price_normalizer.as_decimal(),
             regression_short_price_normalizer=self.regression.short_price_normalizer.as_decimal(),
+            regression_number_of_long_prices=self.regression_detail.number_of_long_prices,
+            regression_number_of_short_prices=self.regression_detail.number_of_short_prices,
+            regression_number_of_timestamps_intersection_set=self.regression_detail.number_of_timestamps_intersection_set,
             did_short_trade_fill=self.did_short_trade_fill,
             did_long_trade_fill=self.did_long_trade_fill,
-            gain=self.gain,
+            added_long_asset_amount=self.added_long_asset_amount.as_decimal(),
+            added_short_asset_amount=self.added_short_asset_amount.as_decimal(),
+            added_quote_asset_amount=self.added_quote_asset_amount.as_decimal(),
         )
