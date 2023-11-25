@@ -36,27 +36,30 @@ class Algorithm:
 
     def __init__(
         self,
-        min_trading_beta,
-        pricing_factor,
-        trading_threshold,
-        wait_period,
-        regression_len,
-        regression_delta,
-        long_asset,
-        short_asset,
-        quote_asset,
+        min_trading_beta: decimal.Decimal,
+        pricing_factor: decimal.Decimal,
+        wait_period: datetime.timedelta,
+        trading_threshold: decimal.Decimal,
+        regression_len: int,
+        regression_delta: datetime.timedelta,
+        long_asset: Asset,
+        short_asset: Asset,
+        quote_asset: Asset,
     ):
         self.min_trading_beta = min_trading_beta
         self.pricing_factor = pricing_factor
-        self.trading_threshold = trading_threshold
         self.wait_period = wait_period
+        self.trading_threshold = trading_threshold
         self.regression_len = regression_len
-        number_of_regression_delta_minutes = regression_delta / datetime.timedelta(minutes=1)
-        assert int(number_of_regression_delta_minutes) == number_of_regression_delta_minutes
         self.regression_delta = regression_delta
         self.long_asset = long_asset
         self.short_asset = short_asset
         self.quote_asset = quote_asset
+        self._validate()
+
+    def _validate(self):
+        number_of_regression_delta_minutes = self.regression_delta / datetime.timedelta(minutes=1)
+        assert int(number_of_regression_delta_minutes) == number_of_regression_delta_minutes
 
     def as_entity_kwargs(self) -> AlgorithmEntityKwargs:
         return AlgorithmEntityKwargs(
@@ -103,7 +106,7 @@ class Result:
     def as_entity_kwargs(self, algorithm_id: int) -> ResultEntityKwargs:
         return ResultEntityKwargs(
             algorithm_id=algorithm_id,
-            timestamp=self.timestamp,
+            timestamp=int(self.timestamp.timestamp()),
             regression_alpha=self.regression.alpha,
             regression_beta=self.regression.beta,
             regression_long_price_normalizer=self.regression.long_price_normalizer.as_decimal(),

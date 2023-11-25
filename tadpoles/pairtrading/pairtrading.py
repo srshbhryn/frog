@@ -32,7 +32,6 @@ class PairTradingSimulation:
             Exchange.NOBITEX,
             Pair(self.algorithm.short_asset, self.algorithm.quote_asset),
         )
-        self.simulation_timestamp = start_at.timestamp()
 
     @functools.cached_property
     def algorithm_id(self) -> int:
@@ -46,17 +45,22 @@ class PairTradingSimulation:
 
         return algorithm_entity.id
 
-    def run_for(self, timestamp: datetime.datetime) -> None:
-        if (
+    def run(self):
+        sim_delta = self.algorithm.regression_len * self.algorithm.regression_delta
+        for timestamp in [self.start_at + i * sim_delta for i in range(int((self.end_at - self.start_at) / sim_delta))]:
+            self._run_for(timestamp)
+
+    def _run_for(self, timestamp: datetime.datetime) -> None:
+        if db.query(
             db.query(ResultEntity)
             .filter_by(
                 algorithm_id=self.algorithm_id,
                 timestamp=int(timestamp.timestamp()),
             )
             .exists()
-        ):
+        ).scalar():
             logging.warning(
-                'Re running simulation for algorithm #%d and  "%s".',
+                'Re-running simulation for algorithm #%d and "%s".',
                 self.algorithm_id,
                 timestamp.isoformat(),
             )
@@ -64,7 +68,7 @@ class PairTradingSimulation:
 
         to_timestamp = timestamp
         from_timestamp = to_timestamp - self.algorithm.regression_delta * self.algorithm.regression_len
-        regression, regression_detail = self.get_regression(from_timestamp, to_timestamp)
+        regression, regression_detail = self._get_regression(from_timestamp, to_timestamp)
         if regression.beta < self.algorithm.min_trading_beta:
             return
 
@@ -118,28 +122,30 @@ class PairTradingSimulation:
         if did_long_trade_fill:
             sign = -1 if should_short_long_asset else 1
             added_long_asset_amount += sign * long_amount
-            added_quote_asset_amount += Amount(-sign * long_amount * long_price)
+            added_quote_asset_amount += Amount((-sign * long_amount * long_price).as_decimal())
 
         if did_short_trade_fill:
             sign = 1 if should_short_long_asset else -1
             added_short_asset_amount += sign * short_amount
-            added_quote_asset_amount += Amount(-sign * short_amount * short_price)
+            added_quote_asset_amount += Amount((-sign * short_amount * short_price).as_decimal())
 
         db.add(
-            Result(
-                timestamp,
-                regression,
-                regression_detail,
-                did_short_trade_fill,
-                did_long_trade_fill,
-                added_long_asset_amount,
-                added_short_asset_amount,
-                added_quote_asset_amount,
-            ).as_entity_kwargs(self.algorithm_id)
+            ResultEntity(
+                **Result(
+                    timestamp,
+                    regression,
+                    regression_detail,
+                    did_short_trade_fill,
+                    did_long_trade_fill,
+                    added_long_asset_amount,
+                    added_short_asset_amount,
+                    added_quote_asset_amount,
+                ).as_entity_kwargs(self.algorithm_id)
+            )
         )
         db.commit()
 
-    def get_regression(self, from_timestamp, to_timestamp) -> tuple[Regression, RegressionDetail]:
+    def _get_regression(self, from_timestamp, to_timestamp) -> tuple[Regression, RegressionDetail]:
         return get_linear_regression(
             self.long_pair_oracle.get_timerange_prices(from_timestamp, to_timestamp),
             self.short_pair_oracle.get_timerange_prices(from_timestamp, to_timestamp),

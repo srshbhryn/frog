@@ -19,6 +19,10 @@ class AlgorithmEntity(Base):
     long_asset: Mapped[str] = mapped_column(String(8))
     short_asset: Mapped[str] = mapped_column(String(8))
     quote_asset: Mapped[str] = mapped_column(String(8))
+    results: Mapped[list['ResultEntity']] = relationship(
+        back_populates='algorithm',
+        cascade='all, delete-orphan',
+    )
 
 
 class ResultEntity(Base):
