@@ -6,8 +6,9 @@ from sqlalchemy import func
 
 from frog.types import Pair, Price
 from tadpoles.types import Exchange
+from tadpoles.timescaledb import db
 
-from .db import db, Candle
+from .models import Candle
 
 
 class Oracle:
