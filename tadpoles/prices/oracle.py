@@ -1,5 +1,5 @@
 import functools
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 from sqlalchemy import func
@@ -23,8 +23,8 @@ class Oracle:
             Candle.quote_asset == self.pair.quote.value,
         ]
 
-    def _convert_to_whole_minute_timestamp(self, timestamp: datetime) -> int:
-        return timestamp.replace(second=0, microsecond=0).timestamp()
+    def _convert_to_whole_minute_timestamp(self, timestamp: datetime) -> datetime:
+        return timestamp.replace(second=0, microsecond=0)
 
     def get_price(self, timestamp: datetime) -> Optional[Price]:
         candle = (
@@ -49,7 +49,7 @@ class Oracle:
     ) -> tuple[Optional[Price], Optional[Price]]:
         from_timestamp_whole_minute = self._convert_to_whole_minute_timestamp(from_timestamp)
         if from_timestamp_whole_minute != from_timestamp.timestamp():
-            from_timestamp_whole_minute += 60
+            from_timestamp_whole_minute += timedelta(minutes=1)
 
         min_price, max_price = (
             db.query(
@@ -76,7 +76,7 @@ class Oracle:
         to_timestamp: datetime,
     ) -> dict[datetime, Price]:
         return {
-            datetime.fromtimestamp(timestamp): Price(price)
+            timestamp: Price(price)
             for timestamp, price in db.query(Candle.timestamp, Candle.open_price)
             .filter(
                 *[

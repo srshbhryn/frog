@@ -7,8 +7,6 @@ from frog.types import Asset, Regression, Amount
 
 from tadpoles.pairtrading.regression import RegressionDetail
 
-from .db import AlgorithmEntity, ResultEntity
-
 
 class AlgorithmEntityKwargs(typing.TypedDict):
     min_trading_beta: decimal.Decimal
@@ -65,10 +63,10 @@ class Algorithm:
         return AlgorithmEntityKwargs(
             min_trading_beta=self.min_trading_beta,
             pricing_factor=self.pricing_factor,
-            wait_period=int(self.wait_period.total_seconds()),
+            wait_period=self.wait_period,
             trading_threshold=self.trading_threshold,
             regression_len=self.regression_len,
-            regression_delta=int(self.regression_delta.total_seconds()),
+            regression_delta=self.regression_delta,
             long_asset=self.long_asset.value,
             short_asset=self.short_asset.value,
             quote_asset=self.quote_asset.value,
@@ -106,7 +104,7 @@ class Result:
     def as_entity_kwargs(self, algorithm_id: int) -> ResultEntityKwargs:
         return ResultEntityKwargs(
             algorithm_id=algorithm_id,
-            timestamp=int(self.timestamp.timestamp()),
+            timestamp=self.timestamp,
             regression_alpha=self.regression.alpha,
             regression_beta=self.regression.beta,
             regression_long_price_normalizer=self.regression.long_price_normalizer.as_decimal(),

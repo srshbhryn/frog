@@ -3,12 +3,13 @@ import decimal
 import logging
 import functools
 
-from frog.types import Asset, Amount, Value, Price, Pair, Regression, Side
+from frog.types import Amount, Value, Pair, Regression
 from tadpoles.prices import Oracle
 from tadpoles.types import Exchange
+from tadpoles.timescaledb import db
 
 from .types import Algorithm, Result
-from .db import db, AlgorithmEntity, ResultEntity
+from .models import AlgorithmEntity, ResultEntity
 from .regression import get_linear_regression, RegressionDetail
 
 
@@ -52,12 +53,7 @@ class PairTradingSimulation:
 
     def _run_for(self, timestamp: datetime.datetime) -> None:
         if db.query(
-            db.query(ResultEntity)
-            .filter_by(
-                algorithm_id=self.algorithm_id,
-                timestamp=int(timestamp.timestamp()),
-            )
-            .exists()
+            db.query(ResultEntity).filter_by(algorithm_id=self.algorithm_id, timestamp=timestamp).exists()
         ).scalar():
             logging.warning(
                 'Re-running simulation for algorithm #%d and "%s".',

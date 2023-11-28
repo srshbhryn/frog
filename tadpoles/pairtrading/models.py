@@ -1,9 +1,11 @@
+import datetime
 import decimal
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import DECIMAL, String, ForeignKey
 
-from .connection import Base, engine
+
+from tadpoles.timescaledb import Base, engine
 
 
 class AlgorithmEntity(Base):
@@ -12,10 +14,10 @@ class AlgorithmEntity(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     min_trading_beta: Mapped[decimal.Decimal] = mapped_column(DECIMAL(32, 16))
     pricing_factor: Mapped[decimal.Decimal] = mapped_column(DECIMAL(32, 16))
-    wait_period: Mapped[int]
+    wait_period: Mapped[datetime.timedelta]
     trading_threshold: Mapped[decimal.Decimal] = mapped_column(DECIMAL(32, 16))
     regression_len: Mapped[int]
-    regression_delta: Mapped[int]  # in seconds
+    regression_delta: Mapped[datetime.timedelta]
     long_asset: Mapped[str] = mapped_column(String(8))
     short_asset: Mapped[str] = mapped_column(String(8))
     quote_asset: Mapped[str] = mapped_column(String(8))
@@ -31,7 +33,7 @@ class ResultEntity(Base):
     algorithm_id: Mapped[int] = mapped_column(ForeignKey("algorithm.id"), primary_key=True)
     algorithm: Mapped[AlgorithmEntity] = relationship(back_populates="results")
 
-    timestamp: Mapped[int] = mapped_column(primary_key=True)
+    timestamp: Mapped[datetime.datetime] = mapped_column(primary_key=True)
     regression_alpha: Mapped[decimal.Decimal] = mapped_column(DECIMAL(32, 16))
     regression_beta: Mapped[decimal.Decimal] = mapped_column(DECIMAL(32, 16))
     regression_long_price_normalizer: Mapped[decimal.Decimal] = mapped_column(DECIMAL(32, 16))
