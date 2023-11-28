@@ -70,6 +70,10 @@ class PairTradingSimulation:
 
         long_price = self.long_pair_oracle.get_price(to_timestamp)
         short_price = self.short_pair_oracle.get_price(to_timestamp)
+
+        if long_price is None or short_price is None:
+            return
+
         residual = (
             long_price / regression.long_price_normalizer
             - regression.alpha

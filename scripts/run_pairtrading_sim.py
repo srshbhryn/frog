@@ -1,3 +1,5 @@
+import multiprocessing
+import logging
 import datetime
 import decimal
 
@@ -7,7 +9,24 @@ from tadpoles.pairtrading.pairtrading import PairTradingSimulation
 from tadpoles.pairtrading.types import Algorithm
 
 
+def target(algorithms, start_timestamp, end_timestamp, queue: multiprocessing.Queue):
+    for k, alg in algorithms:
+        try:
+            print(f'{datetime.datetime.now()}\tstart\t{k}')
+            PairTradingSimulation(alg, start_timestamp, end_timestamp).run()
+            print(f'{datetime.datetime.now()}\tend\t{k}')
+        except:
+            logging.exception('algorithm %d has failed', k)
+    queue.put(b'1')
+
+
 if __name__ == '__main__':
+    multiprocessing.set_start_method('spawn', True)
+    logging.basicConfig(
+        format='%(filename)s %(lineno)d\t%(asctime)s %(levelname)-8s %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
+    )
+
     algorithms = []
     for min_trading_beta in [
         decimal.Decimal('.9'),
@@ -81,6 +100,18 @@ if __name__ == '__main__':
 
     start_timestamp = datetime.datetime(2023, 1, 1, 0, 0, 0, 0)
     end_timestamp = start_timestamp + datetime.timedelta(days=10 * 30)
-    for k, algorithm in enumerate(algorithms):
-        print(f'{datetime.datetime.now()}\t{k +1}\t{len(algorithms)}')
-        PairTradingSimulation(algorithm, start_timestamp, end_timestamp).run()
+    target_args = list(enumerate(algorithms))
+
+    N = 5
+    queue = multiprocessing.Queue()
+    indexes = [i * int(len(algorithms) / N) for i in range(N)]
+    indexes += [len(algorithms)]
+    for i, j in zip(indexes[:-1], indexes[1:]):
+        multiprocessing.Process(
+            target=target,
+            args=(target_args[i:j], start_timestamp, end_timestamp, queue),
+            daemon=True,
+        ).start()
+
+    for _ in range(N):
+        _ = queue.get()
