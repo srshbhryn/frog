@@ -29,49 +29,33 @@ if __name__ == '__main__':
 
     algorithms = []
     for min_trading_beta in [
-        decimal.Decimal('.9'),
-        decimal.Decimal('.7'),
-        decimal.Decimal('.5'),
+        decimal.Decimal('.8'),
         decimal.Decimal('0'),
-        decimal.Decimal('-1'),
-        decimal.Decimal('-.02'),
     ]:
         for pricing_factor in [
             decimal.Decimal('1'),
-            decimal.Decimal('1.001'),
             decimal.Decimal('1.002'),
             decimal.Decimal('1.005'),
-            decimal.Decimal('.999'),
-            decimal.Decimal('.995'),
         ]:
             for wait_period in [
                 datetime.timedelta(minutes=60),
                 datetime.timedelta(minutes=30),
-                datetime.timedelta(minutes=120),
-                datetime.timedelta(minutes=240),
             ]:
                 for trading_threshold in [
                     decimal.Decimal('.0001'),
                     decimal.Decimal('.0002'),
-                    decimal.Decimal('.0003'),
-                    decimal.Decimal('.0004'),
                     decimal.Decimal('.0005'),
                     decimal.Decimal('.001'),
                 ]:
                     for regression_len in [
                         10,
-                        20,
-                        30,
                         50,
-                        120,
+                        100,
                         200,
-                        500,
                     ]:
                         for regression_delta in [
                             datetime.timedelta(minutes=1),
-                            datetime.timedelta(minutes=2),
                             datetime.timedelta(minutes=5),
-                            datetime.timedelta(minutes=10),
                         ]:
                             for long_asset, short_asset in [
                                 (Asset.BTC, Asset.ETH),
