@@ -4,7 +4,7 @@ import datetime
 from tadpoles.timescaledb import Base, engine
 
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import DECIMAL, String
+from sqlalchemy import DECIMAL, String, Index
 
 
 class Candle(Base):
@@ -26,6 +26,34 @@ class Candle(Base):
     open_price: Mapped[decimal.Decimal] = mapped_column(DECIMAL(32, 16))
     close_price: Mapped[decimal.Decimal] = mapped_column(DECIMAL(32, 16))
     volume: Mapped[decimal.Decimal] = mapped_column(DECIMAL(32, 16))
+
+
+class Trade(Base):
+    __tablename__ = "trade"
+    __table_args__ = (
+        Index(
+            'exchange_pair_side_index',
+            'exchange',
+            'base_asset',
+            'quote_asset',
+            'is_buyer_maker',
+        ),
+        {
+            'timescaledb_hypertable': {
+                'time_column_name': 'timestamp',
+                'chunk_time_interval': '1 day',
+            }
+        },
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    base_asset: Mapped[str] = mapped_column(String(8))
+    quote_asset: Mapped[str] = mapped_column(String(8))
+    exchange: Mapped[str] = mapped_column(String(8))
+    timestamp: Mapped[datetime.datetime] = mapped_column(primary_key=True)
+    is_buyer_maker: Mapped[bool]
+    price: Mapped[decimal.Decimal] = mapped_column(DECIMAL(32, 16))
+    amount: Mapped[decimal.Decimal] = mapped_column(DECIMAL(32, 16))
 
 
 Base.metadata.create_all(engine)
