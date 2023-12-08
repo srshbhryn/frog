@@ -8,7 +8,7 @@ from frog.types import Pair, Asset
 
 from tadpoles.prices.oracle import Oracle
 from tadpoles.types import Exchange
-from tadpoles.pairtrading.regression import get_linear_regression
+from tadpoles.pairtrading.regression import get_alpha_and_beta
 
 
 def main():
@@ -28,7 +28,7 @@ def main():
         an_instance,
         an_instance + a_time_period,
     )
-    alpha, beta = get_linear_regression(target_asset_returns, index_asset_returns)
+    alpha, beta = get_alpha_and_beta(target_asset_returns, index_asset_returns)
     print(alpha, beta)
     timestamps_intersection = set(index_asset_returns.keys()).intersection(
         set(target_asset_returns.keys()),
