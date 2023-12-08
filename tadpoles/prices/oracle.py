@@ -1,3 +1,4 @@
+from decimal import Decimal
 import functools
 from datetime import datetime, timedelta
 from typing import Optional
@@ -87,4 +88,28 @@ class Oracle:
             )
             .order_by(Candle.timestamp)
             .all()
+        }
+
+    def get_timerange_returns(
+        self,
+        from_timestamp: datetime,
+        to_timestamp: datetime,
+    ) -> dict[datetime, Decimal]:
+        prices = {
+            timestamp: Price(price)
+            for timestamp, price in db.query(Candle.timestamp, Candle.open_price)
+            .filter(
+                *[
+                    *self.pair_filter_args,
+                    Candle.timestamp >= self._convert_to_whole_minute_timestamp(from_timestamp) - timedelta(minutes=1),
+                    Candle.timestamp <= self._convert_to_whole_minute_timestamp(to_timestamp),
+                ],
+            )
+            .order_by(Candle.timestamp)
+            .all()
+        }
+        return {
+            ts: (prices[ts] - prices[ts - timedelta(minutes=1)]) / prices[ts]
+            for ts in prices
+            if ts - timedelta(minutes=1) in prices
         }
