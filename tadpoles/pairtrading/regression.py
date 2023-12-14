@@ -1,17 +1,29 @@
-import decimal
-
 import numpy as np
-from sklearn.linear_model import LinearRegression  # type: ignore
+from scipy.stats import linregress
+from typing import Tuple
 
 
-def get_alpha_and_beta(
-    first_series: list[float],
-    second_series: list[float],
-) -> tuple[float, float]:
-    regression = LinearRegression().fit(
-        np.array([[1, p] for p in second_series]),
-        np.array(first_series),
-    )
-    alpha = regression.predict([[1, 0]])[0]
-    beta = regression.predict([[1, 1]])[0] - alpha
-    return alpha, beta
+def linear_regression(array1: np.ndarray, array2: np.ndarray) -> Tuple[float, float]:
+    """
+    Perform linear regression between two arrays.
+
+    Parameters:
+    - array1 (np.ndarray): First array.
+    - array2 (np.ndarray): Second array.
+
+    Returns:
+    - Tuple[float, float]: Intercept (alpha) and slope (beta) of the linear regression.
+    """
+    # Check if arrays have the same shape
+    if array1.shape != array2.shape:
+        raise ValueError("The two arrays must have the same shape.")
+
+    # Flatten arrays and drop NaN values
+    flat_array1 = array1.flatten()
+    flat_array2 = array2.flatten()
+    mask = ~np.isnan(flat_array1) & ~np.isnan(flat_array2)
+
+    # Perform linear regression
+    slope, intercept, _, _, _ = linregress(flat_array1[mask], flat_array2[mask])
+
+    return intercept, slope

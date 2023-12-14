@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from sqlalchemy import func
+import numpy as np
 
 from frog.types import Pair, Price
 from tadpoles.types import Exchange
@@ -75,10 +76,10 @@ class Oracle:
         self,
         from_timestamp: datetime,
         to_timestamp: datetime,
-    ) -> dict[datetime, Price]:
-        return {
-            timestamp: Price(price)
-            for timestamp, price in db.query(Candle.timestamp, Candle.open_price)
+    ) -> list[float]:
+        return [
+            float(price)
+            for price, *_ in db.query(Candle.open_price)
             .filter(
                 *[
                     *self.pair_filter_args,
@@ -88,28 +89,15 @@ class Oracle:
             )
             .order_by(Candle.timestamp)
             .all()
-        }
+        ]
 
     def get_timerange_returns(
         self,
         from_timestamp: datetime,
         to_timestamp: datetime,
-    ) -> dict[datetime, Decimal]:
-        prices = {
-            timestamp: Price(price)
-            for timestamp, price in db.query(Candle.timestamp, Candle.open_price)
-            .filter(
-                *[
-                    *self.pair_filter_args,
-                    Candle.timestamp >= self._convert_to_whole_minute_timestamp(from_timestamp) - timedelta(minutes=1),
-                    Candle.timestamp <= self._convert_to_whole_minute_timestamp(to_timestamp),
-                ],
-            )
-            .order_by(Candle.timestamp)
-            .all()
-        }
-        return {
-            ts: (prices[ts] - prices[ts - timedelta(minutes=1)]) / prices[ts]
-            for ts in prices
-            if ts - timedelta(minutes=1) in prices
-        }
+    ) -> np.array:
+        prices = self.get_timerange_prices(
+            from_timestamp - timedelta(minutes=1),
+            to_timestamp,
+        )
+        return np.array([(p - q) / q for p, q in zip(prices[:-1], prices[1:])])

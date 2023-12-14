@@ -1,0 +1,6 @@
+activate
+set -a
+source .local.env
+set +a
+export PYTHONPATH=$(pwd)
+export PYTHONHASHSEED=0

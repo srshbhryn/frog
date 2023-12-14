@@ -11,3 +11,4 @@
     what happens if we replace long and short assets with each other
 
 
+#TADPOLES: use float instead of decimal in candles db

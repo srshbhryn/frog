@@ -1,6 +1,8 @@
-from tadpoles.pairtrading.regression import get_alpha_and_beta
+import numpy as np
+
+from tadpoles.pairtrading.regression import linear_regression
 
 
 def test_regression():
-    alpha, beta = get_alpha_and_beta([8, 13, 18], [1, 2, 3])
-    assert abs(alpha - 3) < 1e-8, abs(beta - 5) < 1e-8
+    alpha, beta = linear_regression(np.array([1, 2, 3]), np.array([8, 13, 18]))
+    assert beta == 5 and alpha == 3

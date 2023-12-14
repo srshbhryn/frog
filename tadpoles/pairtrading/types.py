@@ -3,7 +3,7 @@ import datetime
 import decimal
 import typing
 
-from frog.types import Asset, Regression, Amount
+from frog.types import Asset, Regression, Amount, Pair
 
 from tadpoles.pairtrading.regression import RegressionDetail
 
@@ -22,6 +22,11 @@ class AlgorithmEntityKwargs(typing.TypedDict):
 
 @dataclasses.dataclass
 class Algorithm:
+    target_instrument: Pair
+    index_instrument: Pair
+    analysis_period: datetime.timedelta
+    analysis_update_period: datetime.timedelta
+
     min_trading_beta: decimal.Decimal
     pricing_factor: decimal.Decimal
     wait_period: datetime.timedelta
