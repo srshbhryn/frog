@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   frog_image:
@@ -90,3 +90,17 @@ services:
       - LOG_LEVEL=INFO
       - PYTHONHASHSEED=0
     restart: always
+
+  timescaledb:
+    image: timescale/timescaledb:latest-pg14
+    restart: always
+    ports:
+      - "5477:5432"
+    environment:
+      - POSTGRES_USER=db
+      - POSTGRES_PASSWORD=db
+      - POSTGRES_DB=db
+    volumes:
+      - ./configs/analysisdb/002_set_configs.sh:/docker-entrypoint-initdb.d/002_set_configs.sh
+      - ./configs/analysisdb/analysisdb.conf:/analysisdb.conf
+      - ./data/timescaledb/:/var/lib/postgresql/data/
