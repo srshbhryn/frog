@@ -26,6 +26,8 @@ class Asset(msgpack.Enum):
     ETH = 'eth'
     DOGE = 'doge'
     SHIB = 'shib'
+    TON = 'ton'
+    FTM = 'ftm'
 
     def __str__(self) -> str:
         return self.value
