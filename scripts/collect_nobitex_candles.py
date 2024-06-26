@@ -1,6 +1,7 @@
 import datetime
 import logging
 import time
+import sys
 
 import requests
 
@@ -107,19 +108,35 @@ if __name__ == '__main__':
         level=logging.INFO,
         datefmt='%Y-%m-%d %H:%M:%S',
     )
-    from_date = datetime.date.fromisoformat('2021-01-01')
-    to_date = datetime.date.fromisoformat('2023-11-15')
-    for base_asset, quote_asset in [
-        (Asset.BTC, Asset.RLS),
-        (Asset.BTC, Asset.USDT),
-        (Asset.ETH, Asset.RLS),
-        (Asset.ETH, Asset.USDT),
-        (Asset.DOGE, Asset.RLS),
-        (Asset.DOGE, Asset.USDT),
-        (Asset.SHIB, Asset.RLS),
-        (Asset.SHIB, Asset.USDT),
-        (Asset.USDT, Asset.RLS),
-    ]:
+    if len(sys.argv) < 3:
+        logging.error('Invalid number of arguments.')
+    try:
+        from_date_arg = sys.argv[1]
+        from_date = datetime.date.fromisoformat(from_date_arg)
+    except:
+        logging.error('invalid from date arg: %s', from_date_arg)
+        sys.exit(1)
+
+    try:
+        to_date_arg = sys.argv[2]
+        to_date = datetime.date.fromisoformat(to_date_arg)
+    except:
+        logging.error('invalid to date arg: %s', to_date_arg)
+        sys.exit(1)
+
+    symbols = []
+    for symbol_arg in sys.argv[3:]:
+        try:
+            base_arg, quote_arg = symbol_arg.split('-')
+            base_asset = Asset(base_arg)
+            quote_asset = Asset(quote_arg)
+        except:
+            logging.error('invalid symbol arg: %s', symbol_arg)
+            sys.exit(1)
+
+        symbols.append((base_asset, quote_asset))
+
+    for base_asset, quote_asset in symbols:
         logging.info(
             'fetching %s-%s prices from %s to %s...',
             base_asset,
