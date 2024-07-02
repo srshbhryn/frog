@@ -8,10 +8,12 @@ import numpy as np
 
 from frog.types import Pair, Price
 from tadpoles.types import Exchange
-from tadpoles.timescaledb import db
+from tadpoles.timescaledb import get_db
 
 from .models import Candle
 
+
+db = get_db()
 
 class Oracle:
     def __init__(self, exchange: Exchange, pair: Pair) -> None:

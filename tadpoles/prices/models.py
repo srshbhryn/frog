@@ -5,7 +5,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import DECIMAL, String, Index
 
 from frog.types import Asset
-from tadpoles.timescaledb import Base, engine
+from tadpoles.timescaledb import Base, get_engine
 
 
 class Candle(Base):
@@ -89,4 +89,4 @@ class Trade(Base):
     amount: Mapped[decimal.Decimal] = mapped_column(DECIMAL(32, 16))
 
 
-Base.metadata.create_all(engine)
+Base.metadata.create_all(get_engine())
