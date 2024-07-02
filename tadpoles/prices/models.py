@@ -46,8 +46,8 @@ class BinanceCandle(Base):
         }
     }
 
-    base_asset: Mapped[str] = mapped_column(String(8), primary_key=True)
-    quote_asset: Mapped[str] = mapped_column(String(8), primary_key=True)
+    base_asset: Mapped[Asset] = mapped_column(primary_key=True)
+    quote_asset: Mapped[Asset] = mapped_column(primary_key=True)
     open_time: Mapped[datetime.datetime] = mapped_column(primary_key=True)
     resolution: Mapped[datetime.timedelta] = mapped_column(primary_key=True)
     min_price: Mapped[decimal.Decimal] = mapped_column(DECIMAL(32, 16))
