@@ -11,10 +11,10 @@ import sys
 import pytz
 from sqlalchemy.orm import Session
 
-from frog.types import Asset, Pair
+from frog.types import Asset
 
 from tadpoles.timescaledb import get_db, get_engine, delete_db_and_engine
-from tadpoles.prices.models import Candle, BinanceCandle, BinanceCandleFile
+from tadpoles.prices.models import BinanceCandle, BinanceCandleFile
 
 
 _BACK_OFF_PERIOD = 60
