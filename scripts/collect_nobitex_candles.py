@@ -7,9 +7,11 @@ import requests
 
 from frog.types import Asset, Pair
 
-from tadpoles.timescaledb import db
+from tadpoles.timescaledb import get_db
 from tadpoles.prices.models import Candle
 
+
+db = get_db()
 
 BACK_OFF_PERIOD = 60
 
