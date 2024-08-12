@@ -21,7 +21,7 @@ iniconfig==2.0.0
 isort==5.12.0
 Jinja2==3.1.2
 joblib==1.3.1
-libcst==1.0.1
+libcst==1.4.0
 MarkupSafe==2.1.3
 mccabe==0.7.0
 msgpack==1.0.6
@@ -31,7 +31,7 @@ mypy-extensions==1.0.0
 networkx==3.1
 ninja==1.11.1
 nodeenv==1.8.0
-numpy==1.25.0
+numpy==2.0.1
 packaging==23.1
 pathspec==0.11.2
 platformdirs==3.10.0
@@ -48,11 +48,10 @@ pytest==7.4.3
 pytype==2023.10.31
 pytz==2023.3
 PyYAML==6.0.1
-pyzmq==25.1.0
+pyzmq==26.1.0
 requests==2.31.0
 ruff==0.0.284
-scikit-learn==1.2.2
-scipy==1.11.1
+scipy==1.14.0
 SQLAlchemy==2.0.31
 sqlalchemy-timescaledb==0.4.1
 sqlparse==0.4.4
