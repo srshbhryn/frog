@@ -21,8 +21,25 @@ def collect_nobitex_candles(
     quote_asset: Asset,
     from_date: datetime.date,
     to_date: datetime.date,
+    resolution: datetime.timedelta,
 ):
     symbol = str(Pair(base_asset, quote_asset)).replace('rls', 'irt')
+    resolution_payload = {
+        datetime.timedelta(minutes=1): '1',
+        datetime.timedelta(minutes=5): '5',
+        datetime.timedelta(minutes=15): '15',
+        datetime.timedelta(minutes=30): '30',
+        datetime.timedelta(hours=1): '60',
+        datetime.timedelta(hours=3): '180',
+        datetime.timedelta(hours=4): '240',
+        datetime.timedelta(hours=6): '360',
+        datetime.timedelta(hours=12): '720',
+        datetime.timedelta(days=1): 'D',
+        datetime.timedelta(days=2): '2D',
+        datetime.timedelta(days=3): '3D',
+    }.get(resolution)
+    if resolution_payload is None:
+        raise ValueError('invalid resolution')
     to_datetime = datetime.datetime.combine(
         to_date,
         datetime.time.max,
@@ -45,7 +62,7 @@ def collect_nobitex_candles(
             url = (
                 'https://api.nobitex.ir/market/udf/history'
                 f'?symbol={symbol}'
-                f'&resolution=1'
+                f'&resolution={resolution_payload}'
                 f'&to={to_timestamp}'
                 f'&from={from_timestamp}'
                 f'&page={page}'
@@ -84,7 +101,7 @@ def collect_nobitex_candles(
                     base_asset=str(base_asset),
                     quote_asset=str(quote_asset),
                     exchange='nobitex',
-                    resolution=datetime.timedelta(minutes=1),
+                    resolution=resolution,
                     timestamp=datetime.datetime.fromtimestamp(t, tz=datetime.timezone(datetime.timedelta())),
                     min_price=l,
                     max_price=h,
@@ -105,11 +122,6 @@ def collect_nobitex_candles(
 
 
 if __name__ == '__main__':
-    logging.basicConfig(
-        format='%(filename)s %(lineno)d\t%(asctime)s %(levelname)-8s %(message)s',
-        level=logging.INFO,
-        datefmt='%Y-%m-%d %H:%M:%S',
-    )
     if len(sys.argv) < 3:
         logging.error('Invalid number of arguments.')
     try:
@@ -126,8 +138,25 @@ if __name__ == '__main__':
         logging.error('invalid to date arg: %s', to_date_arg)
         sys.exit(1)
 
+    try:
+        resolution = None
+        resolution_arg = sys.argv[3]
+        for unit, unit_resolution in [
+            ('d', datetime.timedelta(days=1)),
+            ('h', datetime.timedelta(hours=1)),
+            ('m', datetime.timedelta(minutes=1)),
+            ('s', datetime.timedelta(seconds=1)),
+        ]:
+            if resolution_arg[-1] == unit:
+                resolution = int(resolution_arg[:-1]) * unit_resolution
+                break
+        assert resolution is not None
+    except:
+        logging.error('invalid to date arg: %s', to_date_arg)
+        sys.exit(1)
+
     symbols = []
-    for symbol_arg in sys.argv[3:]:
+    for symbol_arg in sys.argv[4:]:
         try:
             base_arg, quote_arg = symbol_arg.split('-')
             base_asset = Asset(base_arg)
@@ -139,16 +168,10 @@ if __name__ == '__main__':
         symbols.append((base_asset, quote_asset))
 
     for base_asset, quote_asset in symbols:
-        logging.info(
-            'fetching %s-%s prices from %s to %s...',
-            base_asset,
-            quote_asset,
-            from_date,
-            to_date,
-        )
         collect_nobitex_candles(
             base_asset,
             quote_asset,
             from_date,
             to_date,
+            resolution,
         )
