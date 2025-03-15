@@ -30,6 +30,7 @@ class Asset(msgpack.Enum):
     FTM = 'ftm'
     BNB = 'bnb'
     SOL = 'sol'
+    PAXG = 'paxg'
 
     def __str__(self) -> str:
         return self.value
