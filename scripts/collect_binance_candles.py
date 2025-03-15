@@ -129,7 +129,7 @@ def read_file(**candle_kwargs: CandleDataKwargs) -> list[BinanceCandle]:
         return BinanceCandle(
             base_asset=candle_kwargs['base_asset'],
             quote_asset=candle_kwargs['quote_asset'],
-            open_time=datetime.datetime.fromtimestamp(int(raw_open_time) / 1000, tz=pytz.UTC),
+            open_time=datetime.datetime.fromtimestamp(int(raw_open_time) / 10 ** (len(raw_open_time) - 10), tz=pytz.UTC),
             resolution=candle_kwargs['resolution'],
             min_price=decimal.Decimal(raw_min_price),
             max_price=decimal.Decimal(raw_max_price),
@@ -200,7 +200,7 @@ if __name__ == '__main__':
     try:
         to_date_arg = sys.argv[2]
         to_date = datetime.date.fromisoformat(to_date_arg)
-    except:
+    except Exception as e:
         logging.error('invalid to date arg: %s', to_date_arg)
         sys.exit(1)
 
@@ -218,7 +218,7 @@ if __name__ == '__main__':
                 break
         assert resolution is not None
     except:
-        logging.error('invalid to date arg: %s', to_date_arg)
+        logging.error('invalid resolution arg: %s', resolution_arg)
         sys.exit(1)
 
     symbols = []
