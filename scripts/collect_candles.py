@@ -7,35 +7,53 @@ import uuid
 import requests
 
 from frog.types import Asset, Pair
+from tadpoles.types import Exchange
 
 from tadpoles.timescaledb import get_db
 from tadpoles.prices.models import Candle
 
 
-def date_range(
-    start_date: datetime.date,
-    end_date: datetime.date,
-    days: int | None = 1,
-) -> list[datetime.date]:
-    return [
-        start_date + datetime.timedelta(days=i)
-        for i in range(0, (end_date - start_date).days, days)
-    ]
+def get_candle_api(exchange: Exchange):
+    return {
+        Exchange.WALLEX: 'https://api.wallex.ir/v1/udf/history',
+        Exchange.OMPFINEX: 'https://api.ompfinex.com/v2/udf/real/history',
+    }[exchange]
 
+def translate_udf_symbol(symbol: str, exchange: Exchange):
+    if exchange == Exchange.WALLEX:
+        return symbol.replace('irt', 'tmn')
+    return symbol
+
+def datetime_range(
+    start_datetime: datetime.datetime,
+    end_datetime: datetime.datetime,
+    delta: datetime.timedelta | None = datetime.timedelta(days=1),
+) -> list[datetime.datetime]:
+    dtr = []
+    current_datetime = start_datetime
+    while current_datetime < end_datetime:
+        print(current_datetime, end_datetime)
+        dtr.append(current_datetime)
+        current_datetime += delta
+    return dtr
 
 db = get_db()
 
 BACK_OFF_PERIOD = 60
 
 
-def collect_nobitex_candles(
+def collect_candles(
+    exchange: Exchange,
     base_asset: Asset,
     quote_asset: Asset,
-    from_date: datetime.date,
-    to_date: datetime.date,
+    from_datetime: datetime.datetime,
+    to_datetime: datetime.datetime,
     resolution: datetime.timedelta,
 ):
-    symbol = str(Pair(base_asset, quote_asset)).replace('rls', 'irt')
+    symbol = translate_udf_symbol(
+        str(Pair(base_asset, quote_asset)).replace('rls', 'irt'),
+        exchange,
+    )
     resolution_payload = {
         datetime.timedelta(minutes=1): '1',
         datetime.timedelta(minutes=5): '5',
@@ -52,45 +70,34 @@ def collect_nobitex_candles(
     }.get(resolution)
     if resolution_payload is None:
         raise ValueError('invalid resolution')
-    to_datetime = datetime.datetime.combine(
-        to_date - datetime.timedelta(days=1),
-        datetime.time.max,
-        datetime.timezone(datetime.timedelta(hours=0)),
-    )
     to_timestamp = int(to_datetime.timestamp())
-    from_datetime = datetime.datetime.combine(
-        from_date,
-        datetime.time.min,
-        datetime.timezone(datetime.timedelta(hours=0)),
-    )
     from_timestamp = int(from_datetime.timestamp())
     added_timestamps = set()
-    max_fetched_timestamp = -999999999999999999
-    min_fetched_timestamp = 999999999999999999
-    page = 1
-    while max_fetched_timestamp < to_timestamp or min_fetched_timestamp > from_timestamp:
+    while True:
         try:
             log_id = uuid.uuid4().hex[:8]
             url = (
-                'https://chart.nobitex.ir/market/udf/history'
+                f'{get_candle_api(exchange)}'
                 f'?symbol={symbol.upper()}'
                 f'&resolution={resolution_payload}'
-                f'&to={to_timestamp}'
                 f'&from={from_timestamp}'
-                f'&page={page}'
+                f'&to={to_timestamp}'
+                # '&countback=100'
             )
             logging.info('log_id: %s\tfetching %s', log_id, url)
             response = requests.get(
                 url=url,
                 timeout=10,
+                headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
             )
             response.raise_for_status()
             data = response.json()
         except:
             logging.exception('log_id: %s\trequest exception: sleeping for %d seconds...', log_id, BACK_OFF_PERIOD)
             time.sleep(BACK_OFF_PERIOD)
+            continue
         if not data['s'] == 'ok':
-            logging.info('log_id: %s\t no data', log_id)
+            logging.info('log_id: %s\t status: %s', log_id, data['s'])
             break
         candles = []
         for t, o, c, h, l, v in set(
@@ -104,16 +111,14 @@ def collect_nobitex_candles(
             )
         ):
             ts = int(t)
-            if ts in added_timestamps:
-                continue
-            if ts > to_timestamp or ts < from_timestamp:
+            if ts >= to_timestamp or ts < from_timestamp:
                 continue
             added_timestamps.add(ts)
             candles.append(
                 Candle(
                     base_asset=str(base_asset),
                     quote_asset=str(quote_asset),
-                    exchange='nobitex',
+                    exchange=exchange.value,
                     resolution=resolution,
                     timestamp=datetime.datetime.fromtimestamp(ts, tz=datetime.timezone(datetime.timedelta())),
                     min_price=l,
@@ -124,11 +129,8 @@ def collect_nobitex_candles(
                 )
             )
         db.add_all(candles)
-        max_fetched_timestamp = max(added_timestamps)
-        min_fetched_timestamp = min(added_timestamps)
-        page += 1
         db.commit()
-
+        break
 
 if __name__ == '__main__':
     logging.basicConfig(
@@ -136,17 +138,21 @@ if __name__ == '__main__':
         level=logging.INFO,
         datefmt='%Y-%m-%d %H:%M:%S',
     )
-    if len(sys.argv) < 3:
+    if len(sys.argv) < 5:
         logging.error('Invalid number of arguments.')
     try:
-        from_date_arg = sys.argv[1]
+        exchange = Exchange(sys.argv[1])
+    except:
+        logging.error('Invalid exchange arg.')
+    try:
+        from_date_arg = sys.argv[2]
         from_date = datetime.date.fromisoformat(from_date_arg)
     except:
         logging.error('invalid from date arg: %s', from_date_arg)
         sys.exit(1)
 
     try:
-        to_date_arg = sys.argv[2]
+        to_date_arg = sys.argv[3]
         to_date = datetime.date.fromisoformat(to_date_arg)
     except:
         logging.error('invalid to date arg: %s', to_date_arg)
@@ -154,7 +160,7 @@ if __name__ == '__main__':
 
     try:
         resolution = None
-        resolution_arg = sys.argv[3]
+        resolution_arg = sys.argv[4]
         for unit, unit_resolution in [
             ('d', datetime.timedelta(days=1)),
             ('h', datetime.timedelta(hours=1)),
@@ -170,7 +176,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     symbols = []
-    for symbol_arg in sys.argv[4:]:
+    for symbol_arg in sys.argv[5:]:
         try:
             base_arg, quote_arg = symbol_arg.split('-')
             base_asset = Asset(base_arg)
@@ -181,13 +187,18 @@ if __name__ == '__main__':
 
         symbols.append((base_asset, quote_asset))
 
-    date_delta = 3
+    delta = datetime.timedelta(hours=6)
     for base_asset, quote_asset in symbols:
-        for date in date_range(from_date, to_date, date_delta):
-            collect_nobitex_candles(
+        for dt in datetime_range(
+            datetime.datetime.combine(from_date, datetime.time.min),
+            datetime.datetime.combine(to_date, datetime.time.min),
+            delta,
+        ):
+            collect_candles(
+                exchange,
                 base_asset,
                 quote_asset,
-                date,
-                date + datetime.timedelta(days=date_delta),
+                dt,
+                dt + delta,
                 resolution,
             )
