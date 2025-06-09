@@ -1,5 +1,5 @@
 import datetime
-import logging
+import dataclasses
 
 from frog.types import Asset
 
@@ -8,18 +8,20 @@ from tadpoles.types import Exchange
 from tadpoles.prices.models import Candle
 
 
+@dataclasses.dataclass
+class FixedPrices:
+    fixed_timestamps: list[int]
+    fixed_prices: list[float]
+    number_of_missing_points: int
+
+
 def _fix_missing_prices(
     timestamps: list[int],
     start_timestamp: int,
     end_timestamp: int,
     prices: list[float],
 ) -> list[float]:
-    if len(timestamps) / ((end_timestamp - start_timestamp) // 60) < .9:
-        logging.warning(
-            'number of missing data is too high, required: %d, got: %d',
-            ((end_timestamp - start_timestamp) // 60),
-            len(timestamps),
-        )
+    number_of_missing_points = int(len(timestamps) / ((end_timestamp - start_timestamp) // 60))
     # Add missing points before start
     if start_timestamp < timestamps[0]:
         num_points = (timestamps[0] - start_timestamp) // 60
@@ -56,8 +58,11 @@ def _fix_missing_prices(
 
     filled_timestamps.append(timestamps[-1])
     filled_prices.append(prices[-1])
-
-    return filled_timestamps, filled_prices
+    return FixedPrices(
+        fixed_timestamps=filled_timestamps,
+        fixed_prices=filled_prices,
+        number_of_missing_points=number_of_missing_points,
+    )
 
 
 def get_prices(
@@ -66,7 +71,7 @@ def get_prices(
     quote: Asset,
     from_datetime: datetime.datetime,
     to_datetime: datetime.datetime,
-) -> list[float]:
+) -> FixedPrices:
     db = get_db()
     candles = db.query(
         Candle.timestamp,
