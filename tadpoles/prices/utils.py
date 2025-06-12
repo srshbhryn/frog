@@ -5,7 +5,15 @@ from frog.types import Asset
 
 from tadpoles.timescaledb import get_db
 from tadpoles.types import Exchange
-from tadpoles.prices.models import Candle
+from tadpoles.prices.models import Candle as CandleEntity
+
+
+@dataclasses.dataclass
+class Candle:
+    min_price: float
+    max_price: float
+    open_price: float
+    close_price: float
 
 
 @dataclasses.dataclass
@@ -15,12 +23,19 @@ class FixedPrices:
     number_of_missing_points: int
 
 
+@dataclasses.dataclass
+class FixedCandles:
+    fixed_timestamps: list[int]
+    fixed_candles: list[Candle]
+    number_of_missing_points: int
+
+
 def _fix_missing_prices(
     timestamps: list[int],
     start_timestamp: int,
     end_timestamp: int,
     prices: list[float],
-) -> list[float]:
+) -> FixedPrices:
     number_of_missing_points = int(len(timestamps) / ((end_timestamp - start_timestamp) // 60))
     # Add missing points before start
     if start_timestamp < timestamps[0]:
@@ -74,18 +89,18 @@ def get_prices(
 ) -> FixedPrices:
     db = get_db()
     candles = db.query(
-        Candle.timestamp,
-        Candle.close_price,
+        CandleEntity.timestamp,
+        CandleEntity.close_price,
     ).filter(
         *[
-            Candle.resolution == datetime.timedelta(minutes=1),
-            Candle.base_asset == base.value,
-            Candle.quote_asset == quote.value,
-            Candle.exchange == exchange.value,
-            Candle.timestamp >= from_datetime,
-            Candle.timestamp <= to_datetime,
+            CandleEntity.resolution == datetime.timedelta(minutes=1),
+            CandleEntity.base_asset == base.value,
+            CandleEntity.quote_asset == quote.value,
+            CandleEntity.exchange == exchange.value,
+            CandleEntity.timestamp >= from_datetime,
+            CandleEntity.timestamp <= to_datetime,
         ],
-    ).order_by(Candle.timestamp).all()
+    ).order_by(CandleEntity.timestamp).all()
     candles = list(map(
         lambda c: (int(c[0].timestamp()), float(c[1])),
         candles,
@@ -97,3 +112,99 @@ def get_prices(
         int(to_datetime.timestamp()),
         list(prices),
     )
+
+
+def get_candles(
+    exchange: Exchange,
+    base: Asset,
+    quote: Asset,
+    from_datetime: datetime.datetime,
+    to_datetime: datetime.datetime,
+):
+    db = get_db()
+    candles = db.query(
+        CandleEntity.timestamp,
+        CandleEntity.close_price,
+        CandleEntity.open_price,
+        CandleEntity.min_price,
+        CandleEntity.max_price,
+    ).filter(
+        *[
+            CandleEntity.resolution == datetime.timedelta(minutes=1),
+            CandleEntity.base_asset == base.value,
+            CandleEntity.quote_asset == quote.value,
+            CandleEntity.exchange == exchange.value,
+            CandleEntity.timestamp >= from_datetime,
+            CandleEntity.timestamp <= to_datetime,
+        ],
+    ).order_by(CandleEntity.timestamp).all()
+    try:
+        timestamps, close_prices, open_prices, min_prices, max_prices = zip(*list(map(
+            lambda c: (
+                int(c[0].timestamp()),
+                float(c[1]),
+                float(c[2]),
+                float(c[3]),
+                float(c[4]),
+            ),
+            candles,
+        )))
+    except Exception as e:
+        print(e)
+    fixed_close_prices = _fix_missing_prices(
+        list(timestamps),
+        int(from_datetime.timestamp()),
+        int(to_datetime.timestamp()),
+        list(close_prices),
+    )
+    fixed_open_prices = _fix_missing_prices(
+        list(timestamps),
+        int(from_datetime.timestamp()),
+        int(to_datetime.timestamp()),
+        list(open_prices),
+    )
+    fixed_min_prices = _fix_missing_prices(
+        list(timestamps),
+        int(from_datetime.timestamp()),
+        int(to_datetime.timestamp()),
+        list(min_prices),
+    )
+    fixed_max_prices = _fix_missing_prices(
+        list(timestamps),
+        int(from_datetime.timestamp()),
+        int(to_datetime.timestamp()),
+        list(max_prices),
+    )
+    return FixedCandles(
+        fixed_timestamps=fixed_close_prices.fixed_timestamps,
+        fixed_candles=[
+            Candle(min_price=min_price, max_price=max_price, open_price=open_price, close_price=close_price)
+            for close_price, open_price, min_price, max_price in zip(
+                fixed_close_prices.fixed_prices,
+                fixed_open_prices.fixed_prices,
+                fixed_min_prices.fixed_prices,
+                fixed_max_prices.fixed_prices,
+            )
+        ],
+        number_of_missing_points=fixed_close_prices.number_of_missing_points,
+    )
+
+
+def get_min_max_timestamps(
+    exchange: Exchange,
+    base: Asset,
+    quote: Asset,
+):
+    db = get_db()
+    candles = db.query(
+        CandleEntity.timestamp,
+    ).filter(
+        *[
+            CandleEntity.resolution == datetime.timedelta(minutes=1),
+            CandleEntity.base_asset == base.value,
+            CandleEntity.quote_asset == quote.value,
+            CandleEntity.exchange == exchange.value,
+        ],
+    ).order_by(CandleEntity.timestamp).all()
+    timestamps = [int(c[0].timestamp()) for c in candles]
+    return min(timestamps), max(timestamps)
