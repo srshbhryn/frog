@@ -311,7 +311,8 @@ A convenience shell snippet is provided in [`source`](source):
 source ./source        # defines an `activate`-style block
 ```
 
-It exports the variables from `.local.env`, sets `PYTHONPATH=$(pwd)` and
+It exports the variables from `.local.env` (copy it from
+[`.local.env.example`](.local.env.example) and set `NOBITEX_TOKEN`), sets `PYTHONPATH=$(pwd)` and
 `PYTHONHASHSEED=0` (deterministic hashing is required because the msgpack codec
 keys extension types on `hash(type_name)`).
 
@@ -324,6 +325,7 @@ pip install --upgrade pip
 pip install -r requirements.txt
 pip install scikit-learn        # needed by the analyst
 
+cp .local.env.example .local.env   # then set NOBITEX_TOKEN
 set -a; source .local.env; set +a
 export PYTHONPATH=$(pwd)
 export PYTHONHASHSEED=0
@@ -388,7 +390,8 @@ with the Tadpoles / TimescaleDB stack up):
 ## Configuration
 
 Configuration is environment‑variable driven, read in
-[`frog/config.py`](frog/config.py). Defaults live in [`.local.env`](.local.env).
+[`frog/config.py`](frog/config.py). Defaults live in [`.local.env.example`](.local.env.example);
+copy it to `.local.env`, which git ignores.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
